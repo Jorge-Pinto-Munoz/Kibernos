@@ -1,0 +1,471 @@
+<title>Rekonoce Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: a la izquierda la ficha del prototipo (kicker, rayita, controles de fase y mapa de pantallas); a la derecha el teléfono clicable. En pantallas angostas, la ficha arriba y el teléfono a todo el ancho. */
+:root{
+  --bg:#FFFFFF; --warm:#F9F8F7; --ink:#2C2C2B; --ink-2:#474747; --ink-3:#5F5E5A; --grey:#A5A3A2;
+  --line:#E6E5E3; --line-2:#D0D0CD; --green:#B2D5AD; --green-wash:#DDE8D7; --lilac:#B6AAD1; --lilac-wash:#ECE8F4; --silver:#C2C2C2;
+  --font:"Gilroy","Poppins",Arial,sans-serif; --r:6px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{background:var(--warm)}
+body{color:var(--ink-3);font-family:var(--font);font-size:15px;line-height:1.5}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
+.page{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 56px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:56px;align-items:start}
+.kicker{font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.ray{display:block;width:24px;height:2px;background:var(--lilac)}
+.wm{font-weight:600;font-size:13px;letter-spacing:.14em;color:var(--ink)}
+
+/* Ficha */
+.brief{display:grid;gap:22px;position:sticky;top:24px}
+.brief .top{display:flex;justify-content:space-between;align-items:center}
+.brief h1{font-weight:600;font-size:clamp(32px,4.4vw,46px);line-height:1.08;color:var(--ink);text-wrap:balance;margin:0}
+.brief .sub{max-width:52ch;font-size:15.5px}
+.ctl{display:grid;gap:10px}
+.ctl .lbl{font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;width:max-content;max-width:100%;flex-wrap:wrap}
+.seg button{padding:8px 14px;font-size:13.5px;color:var(--ink-3);border-right:1px solid var(--line-2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.map{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.map button{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--ink-2)}
+.map button:nth-child(odd){padding-right:16px}
+.map button .n{color:var(--green);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;min-width:22px}
+.map button[aria-current="true"]{color:var(--ink);font-weight:600}
+.team{display:grid;grid-template-columns:repeat(3,minmax(0,max-content));gap:4px 20px;justify-content:start;border-top:1px solid var(--line);padding-top:16px}
+.team b{display:block;font-size:34px;line-height:1.1;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.team b.g{color:var(--green)}
+.team span{font-size:12px;font-weight:600;color:var(--ink)}
+.team small{display:block;font-size:11.5px;color:var(--ink-3)}
+.foot{font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:10px}
+
+/* Teléfono */
+.device{width:392px;height:812px;max-width:100%;border:1px solid var(--line-2);border-radius:48px;background:var(--bg);padding:9px}
+.screen{width:100%;height:100%;border-radius:40px;overflow:hidden;border:1px solid var(--line);display:flex;flex-direction:column;background:var(--bg);position:relative}
+.status{display:flex;justify-content:space-between;align-items:center;padding:12px 26px 6px;font-size:12px;font-weight:600;color:var(--ink);flex:0 0 auto}
+.status .isl{width:96px;height:26px;border-radius:14px;background:var(--ink)}
+.view{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;scrollbar-width:none}
+.view::-webkit-scrollbar{display:none}
+.tabs{flex:0 0 auto;display:flex;justify-content:space-around;border-top:1px solid var(--line);padding:8px 8px 20px;background:var(--bg)}
+.tabs button{display:grid;justify-items:center;gap:2px;font-size:10.5px;color:var(--grey);min-width:64px;padding-top:4px}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current="true"]{color:var(--ink);font-weight:600}
+.tabs button[aria-current="true"]::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--green);margin-top:2px}
+
+/* Piezas del app */
+.pad{padding:8px 22px 24px;display:flex;flex-direction:column;gap:18px}
+.appbar{display:flex;justify-content:space-between;align-items:center;padding:6px 22px 4px;min-height:40px}
+.back{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink)}
+.back svg{width:18px;height:18px}
+.hgroup{display:grid;gap:8px}
+.h1{font-weight:600;font-size:26px;line-height:1.18;color:var(--ink);margin:0;text-wrap:balance}
+.h2{font-weight:600;font-size:18px;line-height:1.25;color:var(--ink);margin:0}
+.lead{font-size:14.5px;color:var(--ink-3)}
+.small{font-size:12px;color:var(--ink-3)}
+.medal{border-radius:50%;background:var(--warm);border:1px solid var(--line);display:grid;place-items:center;flex:0 0 auto}
+.medal img{width:64%;height:64%;object-fit:contain}
+.medal.done{border-color:var(--green)}
+.medal.off img{opacity:.28}
+.progress{display:grid;gap:8px}
+.progress .row{display:flex;justify-content:space-between;align-items:baseline}
+.progress .big{font-size:40px;font-weight:600;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.progress .big span{color:var(--green)}
+.bars{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.bars i{height:4px;border-radius:2px;background:var(--line)}
+.bars i.on{background:var(--green)}
+.list{display:grid;border-top:1px solid var(--line)}
+.prow{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);width:100%}
+.prow .t{flex:1;min-width:0;display:grid}
+.prow .t b{font-weight:600;font-size:15px;color:var(--ink)}
+.prow .t span{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .st{font-size:11.5px;font-weight:600;color:var(--ink);background:var(--green-wash);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.prow .st.pend{background:transparent;border:1px solid var(--line-2);color:var(--ink-3);font-weight:400}
+.chev{width:16px;height:16px;color:var(--grey);flex:0 0 auto}
+.card{background:var(--warm);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:8px;width:100%}
+.card .ray{margin-bottom:2px}
+.btn{display:block;width:100%;text-align:center;background:var(--ink);color:#fff;border-radius:var(--r);padding:14px;font-weight:600;font-size:15px;min-height:50px}
+.btn[disabled]{background:var(--line);color:var(--grey);cursor:not-allowed}
+.btn.sec{background:var(--bg);color:var(--ink);border:1px solid var(--silver)}
+.link{font-size:13.5px;color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line-2);text-align:center;width:100%}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--green-wash);color:var(--ink);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;width:max-content}
+.chip.lil{background:var(--lilac-wash)}
+.chip.line{background:transparent;border:1px solid var(--line-2);font-weight:400;color:var(--ink-3)}
+.quote{border-left:3px solid var(--green);padding:2px 0 2px 14px;font-style:italic;color:var(--ink-2);font-size:14px}
+.num{font-size:30px;font-weight:600;color:var(--green);line-height:1;min-width:40px;font-variant-numeric:tabular-nums}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--ink);border:1px solid var(--line);flex:0 0 auto}
+.a-delivery{background:var(--green-wash)}
+.a-talent{background:var(--lilac-wash)}
+.a-support{background:var(--warm)}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);border-radius:var(--r);padding:10px 12px}
+.search input{border:0;outline:0;font:inherit;font-size:14px;flex:1;min-width:0;color:var(--ink);background:transparent}
+.search svg{width:16px;height:16px;color:var(--grey)}
+.group{display:grid;gap:4px}
+.group .gh{display:flex;justify-content:space-between;font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);padding-top:6px}
+.group .gh span{color:var(--ink-3);font-weight:400;letter-spacing:0;text-transform:none}
+.person{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);width:100%}
+.person .t{flex:1;min-width:0}
+.person b{font-weight:600;font-size:14.5px;color:var(--ink);display:block}
+.person small{font-size:12px;color:var(--ink-3)}
+.person .radio{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-2);flex:0 0 auto}
+.person[aria-checked="true"]{border-color:var(--ink)}
+.person[aria-checked="true"] .radio{border:6px solid var(--ink)}
+.person[disabled]{opacity:.45;cursor:not-allowed}
+.sticky{position:sticky;bottom:0;background:var(--bg);padding:12px 22px 14px;border-top:1px solid var(--line);margin-top:auto}
+textarea{width:100%;min-height:150px;border:1px solid var(--line-2);border-radius:var(--r);padding:14px;font:inherit;font-size:14.5px;color:var(--ink);resize:none;line-height:1.5}
+textarea:focus{outline:none;border-color:var(--ink)}
+.count{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3)}
+.count b{font-weight:600;color:var(--ink)}
+.starts{display:flex;flex-wrap:wrap;gap:6px}
+.starts button{border:1px solid var(--line-2);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--ink-2)}
+.fin{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--r);width:100%}
+.fin .row{display:flex;align-items:center;gap:12px}
+.fin .row .t{flex:1}
+.fin .row b{font-weight:600;color:var(--ink);font-size:15px;display:block}
+.fin .radio{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-2)}
+.fin[aria-checked="true"]{border-color:var(--ink)}
+.fin[aria-checked="true"] .radio{border:6px solid var(--ink)}
+.fin .quote{font-size:13px}
+.hero-pin{display:grid;place-items:center;padding:8px 0}
+.rings{position:relative;width:220px;height:220px;display:grid;place-items:center}
+.rings::before,.rings::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--lilac)}
+.rings::after{inset:18px;border-color:var(--green)}
+.rings .medal{width:150px;height:150px;background:var(--warm)}
+.center{text-align:center;justify-items:center}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
+.dots i.on{background:var(--ink)}
+.month{display:grid;gap:0}
+.month .mh{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 6px}
+.month .mh b{font-weight:600;color:var(--ink);font-size:15px}
+.wrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.wrow .t{flex:1;display:grid}
+.wrow .t span{font-size:11.5px;color:var(--ink-3)}
+.wrow .t b{font-weight:600;color:var(--ink);font-size:14px}
+.pins4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.pins4 > div{display:grid;justify-items:center;gap:6px;text-align:center}
+.pins4 small{font-size:10.5px;color:var(--ink-3);line-height:1.3}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);padding-top:12px}
+.stats b{display:block;font-size:30px;font-weight:600;color:var(--ink);line-height:1.1}
+.stats b.g{color:var(--green)}
+.stats span{font-size:11.5px;color:var(--ink-3)}
+.toast{display:flex;gap:10px;align-items:center;background:var(--green-wash);border-radius:var(--r);padding:12px 14px;color:var(--ink);font-size:13.5px}
+.why{display:grid;gap:4px}
+.why li{font-size:14px;color:var(--ink-2)}
+.example{font-size:10.5px;color:var(--ink-3);text-align:center;padding:4px 0 0}
+@media (prefers-reduced-motion:no-preference){
+  .enter{animation:enter .28s cubic-bezier(.2,.8,.2,1)}
+  @keyframes enter{from{opacity:.4;transform:translateX(10px)}to{opacity:1;transform:none}}
+  .pulse{animation:pulse .5s ease-out}
+  @keyframes pulse{40%{transform:scale(1.07)}}
+  .rings::before{animation:ring 1.2s ease-out both}
+  .rings::after{animation:ring 1.2s .15s ease-out both}
+  @keyframes ring{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+}
+@media (max-width:900px){
+  .page{grid-template-columns:minmax(0,1fr);gap:28px;padding-block:24px 32px}
+  .brief{position:static}
+  .device{margin:0 auto}
+}
+@media (max-width:440px){
+  .device{width:100%;height:760px;border-radius:36px;padding:6px}
+  .screen{border-radius:30px}
+  .map{grid-template-columns:1fr}
+  .map button:nth-child(odd){padding-right:0}
+}
+</style>
+
+<div class="page">
+  <aside class="brief">
+    <div class="top"><span class="kicker">Prototipo · Kiber Champions</span><span class="wm">KIBERNUM</span></div>
+    <div style="display:grid;gap:12px">
+      <span class="ray"></span>
+      <h1>Así se vería Rekonoce en tu teléfono</h1>
+      <p class="sub">Prototipo clicable para validar antes de desarrollar. Estás viendo la app como Mariela Villanueva, de Delivery. Toca las pantallas, nomina y vota: nada se guarda.</p>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Fase del mes</span>
+      <div class="seg" role="group" aria-label="Fase del mes">
+        <button type="button" data-phase="nom" aria-pressed="true">Nominación</button>
+        <button type="button" data-phase="final" aria-pressed="false">Votación final</button>
+        <button type="button" data-phase="reveal" aria-pressed="false">Revelación</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lbl">Pantallas</span>
+      <nav class="map" id="map" aria-label="Ir a pantalla"></nav>
+    </div>
+    <div class="team">
+      <div><b class="g">16</b><span>personas votan</span><small>17 en el equipo</small></div>
+      <div><b>12</b><span>votos de quórum</span><small>75% de 16</small></div>
+      <div><b>4</b><span>pilares al mes</span><small>3 finalistas c/u</small></div>
+    </div>
+    <p class="foot">Fuente: equipo de Delivery (7), Talent Acquisition (7, Noelia en postnatal) y Delivery Support (3). Finalistas, ganadores y motivos son datos de ejemplo.</p>
+  </aside>
+
+  <div class="device" aria-label="Teléfono con el prototipo">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span class="isl"></span><span>5G</span></div>
+      <div class="view" id="view"></div>
+      <nav class="tabs" id="tabs" aria-label="Navegación del app"></nav>
+    </div>
+  </div>
+</div>
+
+<script>
+const PILLARS=[
+ {id:'colaboracion',name:'Colaboración',symbol:'La hormiga',tag:'Tu colaboración nos hace imparables.',
+  desc:'La hormiga sabe que sola no llega lejos, pero en equipo logra lo imposible. Al compartir conocimientos y poner al grupo por sobre lo individual se multiplica la fuerza del equipo.',
+  ask:'¿Quién compartió lo que sabe, apoyó sin reservas y empujó al equipo hacia la meta común?',
+  when:['Comparte lo que sabe sin guardárselo','Apoya a otra persona o área sin que se lo pidan','Pone la meta del equipo por sobre la propia'],
+  starts:['Me ayudó con ','Compartió ','Se sumó sin que se lo pidieran a ']},
+ {id:'responsabilidad',name:'Responsabilidad',symbol:'La antorcha',tag:'Tu responsabilidad mantiene la luz encendida.',
+  desc:'La antorcha representa el deber y la continuidad: no basta con sostenerla, también hay que cuidarla y pasarla. Así es tu compromiso, que asegura la calidad, inspira confianza y guía al equipo hacia adelante.',
+  ask:'¿Quién mantuvo encendida la llama del compromiso, incluso cuando nadie estaba mirando?',
+  when:['Cumple lo que promete, en plazo y con calidad','Se hace cargo cuando algo sale mal','Deja todo listo para que otro pueda seguir'],
+  starts:['Cumplió con ','Se hizo cargo de ','Dejó listo ']},
+ {id:'respeto',name:'Respeto',symbol:'El torii japonés',tag:'Tu respeto abre caminos para todos y todas.',
+  desc:'El torii japonés nos recuerda que cada persona es un espacio sagrado. Tu respeto abre puertas, cuida la dignidad y construye confianza, creando un ambiente seguro donde todos podemos crecer.',
+  ask:'¿Quién escuchó con atención plena, cuidó las palabras y nos hizo sentir valorados y seguros?',
+  when:['Escucha con atención plena','Cuida las palabras, también en los momentos tensos','Hace sentir a otros valorados y seguros'],
+  starts:['Me escuchó cuando ','Cuidó al equipo en ','Me hizo sentir ']},
+ {id:'comunicacion',name:'Comunicación',symbol:'La caracola',tag:'Tu comunicación conecta y hace que todo fluya.',
+  desc:'La caracola, usada desde la antigüedad para transmitir mensajes, simboliza claridad y unión. Tu comunicación logra que las ideas se entiendan, conecta a las personas y asegura que avancemos en sintonía.',
+  ask:'¿Quién logró que las ideas fluyeran, que los mensajes llegaran claros y que el equipo siguiera unido?',
+  when:['Explica con claridad y a tiempo','Conecta a personas que necesitaban hablar','Mantiene al equipo informado y en sintonía'],
+  starts:['Nos mantuvo al tanto de ','Explicó con claridad ','Conectó a ']}
+];
+const AREAS={delivery:'Delivery',talent:'Talent Acquisition',support:'Delivery Support'};
+const PEOPLE=[
+ ['mv','Mariela Villanueva','delivery'],['rm','Rodolfo Montoya','delivery'],['bb','Bruno Bergamín','delivery'],['mb','Mariela de la Barra','delivery'],
+ ['vc','Vanessa Carrillo','delivery'],['na','Nathaly Amigo','delivery'],['mo','Manuel Orellana','delivery'],
+ ['mc','Margarita Cerda','talent','Talent Acquisition Lead'],['mr','Marcia Rodríguez','talent'],['et','Estefanía Toledo','talent'],['pr','Paula Rojas','talent'],
+ ['bp','Bernardita Pinochet','talent'],['gc','Gloria Caro','talent'],['nb','Noelia Barrera','talent','Postnatal',true],
+ ['rj','Rossana Jiménez','support'],['dm','Daniela Moreno','support'],['sc','Sofía Calderón','support']
+].map(([id,name,area,note,away])=>({id,name,area,note:note||'',away:!!away}));
+const ME='mv';
+const P=id=>PEOPLE.find(p=>p.id===id);
+const PL=id=>PILLARS.find(p=>p.id===id);
+const ini=n=>{const w=n.split(' ').filter(x=>x[0]===x[0].toUpperCase());return (w[0][0]+(w[w.length-1]||'')[0]).toUpperCase()};
+const short=n=>{const w=n.split(' ');return w[0]+' '+w[w.length-1][0]+'.'};
+const FINALISTS={
+ colaboracion:[['rm','Armó la guía de traspaso y la compartió con todo Delivery antes de que alguien la pidiera.'],['et','Cubrió dos procesos de selección de Marcia sin dejar caer ninguno.'],['dm','Ordenó los contratos de tres proyectos para que Delivery pudiera cerrar a tiempo.']],
+ responsabilidad:[['vc','Cerró la entrega del cliente el viernes y dejó todo documentado para el lunes.'],['mr','Cumplió cada fecha comprometida del mes aunque tenía el doble de vacantes.'],['rj','Revisó uno por uno los ingresos del mes para que nadie partiera sin accesos.']],
+ respeto:[['mc','En la retro más difícil del año dejó hablar a todos y frenó las interrupciones.'],['na','Siempre pregunta cómo estás antes de preguntar cómo va la tarea.'],['sc','Recibió a la persona nueva y la hizo sentir parte desde el primer día.']],
+ comunicacion:[['bb','Durante la caída del ambiente mandó un resumen cada hora y nadie quedó sin saber qué pasaba.'],['pr','Tradujo un requerimiento enredado del cliente en tres puntos que todos entendimos.'],['mb','Conectó a Talent con el líder técnico y destrabó un perfil que llevaba semanas.']]
+};
+const WINNERS={colaboracion:['et',6,['Cubrió dos procesos de selección sin dejar caer ninguno.','Siempre tiene un minuto para explicar cómo lo hizo.']],
+ responsabilidad:['vc',7,['Cerró la entrega del viernes y dejó todo documentado.','Si dice que algo va, va.']],
+ respeto:['mc',8,['En la retro más difícil del año dejó hablar a todos.','Cuida cómo nos sentimos, no solo cómo avanzamos.']],
+ comunicacion:['bb',6,['Mandó un resumen cada hora durante la caída del ambiente.','Explica lo técnico para que todos lo entiendan.']]};
+const HISTORY=[
+ ['Octubre 2026',{colaboracion:'gc',responsabilidad:'mo',respeto:'rj',comunicacion:'mv'}],
+ ['Septiembre 2026',{colaboracion:'bp',responsabilidad:'dm',respeto:'rm',comunicacion:'pr'}],
+ ['Agosto 2026',{colaboracion:'na',responsabilidad:'mr',respeto:'sc',comunicacion:'mb'}]
+];
+
+const S={phase:'nom',stack:['home'],noms:{colaboracion:{id:'rm',reason:'Armó la guía de traspaso y la compartió con todo Delivery antes de que alguien la pidiera.'}},finals:{},draft:null,q:'',reveal:0,flash:null,pillar:'colaboracion',fpillar:'colaboracion',showWelcome:false};
+const ICON={
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4" stroke-linecap="round"/></svg>',
+ home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20h-5.5v-5h-5v5H4z"/></svg>',
+ pillars:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+ hall:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M9 13.5L7.5 20l4.5-2.5 4.5 2.5-1.5-6.5"/></svg>',
+ me:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5" stroke-linecap="round"/></svg>',
+ check:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+};
+const medal=(pid,size,cls='')=>`<span class="medal ${cls}" style="width:${size}px;height:${size}px"><img src="pines/${pid}.png" alt=""></span>`;
+const av=(p,size=40)=>`<span class="av a-${p.area}" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.32)}px">${ini(p.name)}</span>`;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cur=()=>S.stack[S.stack.length-1];
+const appbar=(right='')=>`<div class="appbar"><button class="back" data-a="back">${ICON.back}Volver</button><span class="small">${right}</span></div>`;
+const head=(k,t,lead)=>`<div class="hgroup"><span class="kicker">${k}</span><span class="ray"></span><h1 class="h1">${t}</h1>${lead?`<p class="lead">${lead}</p>`:''}</div>`;
+const doneCount=()=>PILLARS.filter(p=>S.noms[p.id]).length;
+const finalCount=()=>PILLARS.filter(p=>S.finals[p.id]).length;
+
+const V={
+ welcome:()=>`<div class="pad" style="min-height:100%;background:var(--warm);justify-content:space-between;padding-top:24px">
+   <div style="display:flex;justify-content:space-between;align-items:center"><span class="kicker">Kiber Champions</span><span class="wm">KIBERNUM</span></div>
+   <div class="hgroup" style="gap:14px"><span class="ray"></span><h1 class="h1" style="font-size:44px;line-height:1.04">Rekonoce</h1>
+   <p class="lead" style="font-size:16px">Reconocer para crecer. Cada mes elegimos juntos a los Kiber Champions de cada pilar.</p></div>
+   <div class="pins4">${PILLARS.map(p=>`<div>${medal(p.id,64)}<small>${p.name}</small></div>`).join('')}</div>
+   <div style="display:grid;gap:12px"><button class="btn" data-a="enter">Entrar con mi correo Kibernum</button>
+   <p class="small" style="text-align:center">Solo para Delivery, Talent Acquisition y Delivery Support.</p></div></div>`,
+
+ home:()=>{
+  if(S.phase==='nom'){const d=doneCount();
+   return `<div class="pad">
+   <div style="display:flex;justify-content:space-between;align-items:center"><span class="wm">KIBERNUM</span>${av(P(ME),34)}</div>
+   ${S.flash?`<div class="toast pulse">${ICON.check}<span>${S.flash}</span></div>`:''}
+   ${head('Noviembre · Nominación','Hola, Mariela. ¿A quién reconoces este mes?','La nominación cierra el viernes 21 a las 18:00.')}
+   <div class="progress"><div class="row"><span class="big">${d}<span>/4</span></span><span class="small">pilares listos</span></div><div class="bars">${PILLARS.map(p=>`<i class="${S.noms[p.id]?'on':''}"></i>`).join('')}</div></div>
+   <div class="list">${PILLARS.map(p=>{const n=S.noms[p.id];const sub=n?(n==='skip'?'Sin nominación este mes':'Nominaste a '+short(P(n.id).name)):p.tag;
+     return `<button class="prow" data-a="nominate" data-p="${p.id}">${medal(p.id,48,n?'done':'')}<span class="t"><b>${p.name}</b><span>${sub}</span></span>${n?`<span class="st">${n==='skip'?'Omitido':'Listo'}</span>`:`<span class="st pend">Pendiente</span>`}</button>`}).join('')}</div>
+   <button class="card" data-a="go" data-s="pillars"><span class="ray"></span><b class="h2" style="font-size:15px">¿Por qué nos reconocemos?</b><span class="small">Los cuatro pilares, qué significa cada pin y qué conductas reconocemos.</span></button>
+   </div>`}
+  if(S.phase==='final'){const d=finalCount();
+   return `<div class="pad">
+   <div style="display:flex;justify-content:space-between;align-items:center"><span class="wm">KIBERNUM</span>${av(P(ME),34)}</div>
+   ${S.flash?`<div class="toast pulse">${ICON.check}<span>${S.flash}</span></div>`:''}
+   ${head('Noviembre · Votación final','Ya hay finalistas. Elige al Champion de cada pilar.','15 de 16 personas nominaron. La votación final cierra el miércoles 26.')}
+   <div class="progress"><div class="row"><span class="big">${d}<span>/4</span></span><span class="small">votos finales</span></div><div class="bars">${PILLARS.map(p=>`<i class="${S.finals[p.id]?'on':''}"></i>`).join('')}</div></div>
+   <div class="list">${PILLARS.map(p=>{const f=S.finals[p.id];return `<button class="prow" data-a="final" data-p="${p.id}">${medal(p.id,48,f?'done':'')}<span class="t"><b>${p.name}</b><span>${f?'Votaste por '+short(P(f).name):'3 finalistas'}</span></span>${f?'<span class="st">Listo</span>':'<span class="st pend">Pendiente</span>'}</button>`}).join('')}</div>
+   </div>`}
+  return `<div class="pad">
+   <div style="display:flex;justify-content:space-between;align-items:center"><span class="wm">KIBERNUM</span>${av(P(ME),34)}</div>
+   ${head('Noviembre · Revelación','Ya tenemos a los Kiber Champions de noviembre','Los revelamos en la reunión de equipo del jueves 27. Desde ese momento quedan en el Salón.')}
+   <div class="pins4">${PILLARS.map(p=>`<div>${medal(p.id,62)}<small>${p.name}</small></div>`).join('')}</div>
+   <button class="btn" data-a="startReveal">Ver la revelación</button>
+   <div class="stats"><div><b class="g">16</b><span>de 16 votaron</span></div><div><b>59</b><span>motivos escritos</span></div><div><b>11</b><span>personas nominadas</span></div></div>
+   </div>`;
+ },
+
+ pillars:()=>`${S.stack.length>1?appbar():''}<div class="pad">
+   ${head('Kiber Champions · Los pilares','Por qué nos reconocemos','Porque cuando reconocemos lo mejor de otros, también sacamos lo mejor de nosotros mismos.')}
+   <p class="quote">El reconocimiento no se trata de premios, sino de construir confianza.</p>
+   <div class="list">${PILLARS.map((p,i)=>`<button class="prow" data-a="pillar" data-p="${p.id}"><span class="num">0${i+1}</span><span class="t"><b>${p.name}</b><span>${p.symbol} · ${p.tag}</span></span>${medal(p.id,44)}</button>`).join('')}</div>
+   <div class="card"><span class="ray"></span><b class="h2" style="font-size:15px">Cómo funciona cada mes</b>
+    <div style="display:grid;gap:10px;margin-top:4px">${[['Nominas','A una persona por pilar, con un motivo concreto.'],['Votas','Entre los 3 finalistas de cada pilar.'],['Celebramos','Revelamos a los Champions en la reunión y entregamos el pin.']].map((x,i)=>`<div style="display:flex;gap:12px"><span class="num" style="font-size:20px;min-width:24px">0${i+1}</span><span class="small"><b style="color:var(--ink)">${x[0]}.</b> ${x[1]}</span></div>`).join('')}</div></div>
+   </div>`,
+
+ pillar:()=>{const p=PL(S.pillar);return `${appbar(p.symbol)}<div class="pad">
+   <div class="hero-pin">${medal(p.id,168)}</div>
+   ${head('Pilar · '+p.symbol,p.name,'')}
+   <p class="h2" style="font-weight:400;font-size:18px">${p.tag}</p>
+   <p class="lead">${p.desc}</p>
+   <div style="display:grid;gap:8px"><span class="kicker">Lo reconocemos cuando alguien</span>
+   <div class="list">${p.when.map((w,i)=>`<div class="prow" style="padding:11px 0"><span class="num" style="font-size:20px;min-width:28px">0${i+1}</span><span class="t"><b style="font-weight:400;font-size:14px">${w}</b></span></div>`).join('')}</div></div>
+   ${S.phase==='nom'?`<button class="btn" data-a="nominate" data-p="${p.id}">${S.noms[p.id]?'Cambiar mi nominación':'Nominar en '+p.name}</button>`:''}
+   </div>`},
+
+ choose:()=>{const p=PL(S.draft.pillar);const q=S.q.toLowerCase();
+  const groups=Object.keys(AREAS).map(a=>{const ps=PEOPLE.filter(x=>x.area===a&&x.name.toLowerCase().includes(q));if(!ps.length)return '';
+   return `<div class="group"><div class="gh">${AREAS[a]}<span>${PEOPLE.filter(x=>x.area===a).length} personas</span></div>${ps.map(x=>{const me=x.id===ME;const dis=me||x.away;
+    return `<button class="person" role="radio" aria-checked="${S.draft.id===x.id}" ${dis?'disabled':''} data-a="pick" data-id="${x.id}">${av(x)}<span class="t"><b>${me?x.name+' (tú)':x.name}</b><small>${x.away?x.note+' · vuelve pronto':(x.note||AREAS[x.area])}</small></span><span class="radio"></span></button>`}).join('')}</div>`}).join('');
+  return `${appbar('Paso 1 de 2')}<div class="pad" style="padding-bottom:12px">
+   <div style="display:flex;gap:14px;align-items:center">${medal(p.id,56)}<div class="hgroup" style="gap:4px"><span class="kicker">${p.name}</span><p class="small" style="color:var(--ink-2)">${p.ask}</p></div></div>
+   <label class="search">${ICON.search}<input id="q" type="search" placeholder="Buscar por nombre" value="${esc(S.q)}" autocomplete="off"></label>
+   <div id="groups" style="display:grid;gap:14px" role="radiogroup" aria-label="Personas">${groups||'<p class="small">No encontramos a nadie con ese nombre.</p>'}</div>
+   <button class="link" data-a="skip">Este mes no tengo a nadie en ${p.name}</button>
+   </div><div class="sticky"><button class="btn" data-a="toReason" ${S.draft.id?'':'disabled'}>${S.draft.id?'Continuar con '+P(S.draft.id).name.split(' ')[0]:'Elige a una persona'}</button></div>`},
+
+ reason:()=>{const p=PL(S.draft.pillar);const x=P(S.draft.id);const n=S.draft.reason.trim().length;
+  return `${appbar('Paso 2 de 2')}<div class="pad" style="padding-bottom:12px">
+   <div style="display:flex;gap:12px;align-items:center">${av(x,48)}<div><b style="color:var(--ink);font-weight:600;font-size:16px">${x.name}</b><p class="small">${p.name} · ${AREAS[x.area]}</p></div></div>
+   ${head('Tu motivo','¿Qué hizo este mes que merece '+({colaboracion:'la hormiga',responsabilidad:'la antorcha',respeto:'el torii',comunicacion:'la caracola'})[p.id]+'?','Cuenta un hecho concreto. Es la historia que leeremos en la ceremonia.')}
+   <div style="display:grid;gap:8px"><textarea id="reason" aria-label="Motivo" placeholder="Por ejemplo: en la entrega del cliente nuevo…">${esc(S.draft.reason)}</textarea>
+   <div class="count"><span id="cnt">${n<40?`Faltan <b>${40-n}</b> caracteres`:'<b>Listo</b> para enviar'}</span><span>${n} / 40 mín.</span></div></div>
+   <div style="display:grid;gap:8px"><span class="kicker">Para empezar</span><div class="starts">${p.starts.map(s=>`<button data-a="start" data-t="${esc(s)}">${s.trim()}…</button>`).join('')}</div></div>
+   <p class="small">Tu nombre no se muestra. ${x.name.split(' ')[0]} leerá este motivo si llega a la final.</p>
+   </div><div class="sticky"><button class="btn" id="send" data-a="send" ${n<40?'disabled':''}>Enviar nominación</button></div>`},
+
+ final:()=>{const p=PL(S.fpillar);const sel=S.finals[p.id];
+  return `${appbar('Votación final')}<div class="pad" style="padding-bottom:12px">
+   <div style="display:flex;gap:14px;align-items:center">${medal(p.id,56)}<div class="hgroup" style="gap:4px"><span class="kicker">${p.name} · finalistas</span><p class="small" style="color:var(--ink-2)">Elige a una persona. Cada una aparece con un motivo anónimo que recibió.</p></div></div>
+   <div style="display:grid;gap:10px" role="radiogroup" aria-label="Finalistas">${FINALISTS[p.id].map(([id,q])=>{const x=P(id);return `<button class="fin" role="radio" aria-checked="${sel===id}" data-a="fpick" data-id="${id}"><span class="row">${av(x)}<span class="t"><b>${x.name}</b><small class="small">${AREAS[x.area]}</small></span><span class="radio"></span></span><span class="quote">«${q}»</span></button>`}).join('')}</div>
+   <p class="small">No mostramos cuántos votos tuvo cada finalista, para que elijas por la historia y no por la tendencia.</p>
+   </div><div class="sticky"><button class="btn" data-a="fconfirm" ${sel?'':'disabled'}>Confirmar voto</button></div>`},
+
+ reveal:()=>{const p=PILLARS[S.reveal];const [id,votes,qs]=WINNERS[p.id];const x=P(id);const last=S.reveal===3;
+  return `${appbar('Noviembre 2026')}<div class="pad center" style="display:grid;gap:16px;background:var(--warm);min-height:100%;align-content:start;padding-top:16px">
+   <span class="kicker">Champion de ${p.name}</span><span class="ray"></span>
+   <div class="rings" data-k="${S.reveal}">${medal(p.id,150)}</div>
+   <h1 class="h1" style="font-size:32px">${x.name}</h1>
+   <p class="small">${AREAS[x.area]} · ${votes} votos en la final</p>
+   <div style="display:grid;gap:10px;text-align:left;width:100%">${qs.map(q=>`<p class="quote">«${q}»</p>`).join('')}</div>
+   <div class="dots">${PILLARS.map((_,i)=>`<i class="${i===S.reveal?'on':''}"></i>`).join('')}</div>
+   <button class="btn" data-a="${last?'toHall':'nextReveal'}">${last?'Ver el Salón de Champions':'Siguiente pilar'}</button>
+   <p class="example">Ganadores y motivos de ejemplo</p>
+   </div>`},
+
+ hall:()=>{const months=(S.phase==='reveal'?[['Noviembre 2026',Object.fromEntries(PILLARS.map(p=>[p.id,WINNERS[p.id][0]]))]]:[]).concat(HISTORY);
+  const count=new Set(months.flatMap(m=>Object.values(m[1]))).size;
+  return `${S.stack.length>1?appbar():''}<div class="pad">
+   ${head('Kiber Champions · 2026','Salón de Champions','Cada fila es un pin entregado. Así se reparte el reconocimiento en el equipo.')}
+   <div class="stats"><div><b class="g">${count}</b><span>Champions distintos</span></div><div><b>${months.length*4}</b><span>pines entregados</span></div><div><b>${months.length}</b><span>meses</span></div></div>
+   ${months.map(([m,w])=>`<div class="month"><div class="mh"><b>${m}</b><span class="small">4 pines</span></div>${PILLARS.map(p=>{const x=P(w[p.id]);return `<div class="wrow">${medal(p.id,36)}<span class="t"><span>${p.name}</span><b>${x.name}</b></span>${av(x,30)}</div>`}).join('')}</div>`).join('')}
+   <p class="example">Historial de ejemplo</p>
+   </div>`},
+
+ me:()=>{const x=P(ME);const won={comunicacion:'Octubre 2026'};
+  return `<div class="pad">
+   <div style="display:flex;gap:14px;align-items:center">${av(x,64)}<div><span class="kicker">Mi perfil</span><h1 class="h1" style="font-size:22px">${x.name}</h1><p class="small">${AREAS[x.area]}</p></div></div>
+   <div style="display:grid;gap:12px"><span class="ray"></span><b class="h2">Mis pines</b>
+   <div class="pins4">${PILLARS.map(p=>`<div>${medal(p.id,60,won[p.id]?'done':'off')}<small>${p.name}<br>${won[p.id]||'Aún no'}</small></div>`).join('')}</div></div>
+   <div class="stats"><div><b class="g">9</b><span>motivos recibidos</span></div><div><b>3</b><span>veces finalista</span></div><div><b>4/4</b><span>meses votando</span></div></div>
+   <div style="display:grid;gap:12px"><b class="h2">Lo que el equipo dijo de ti</b>
+   <p class="quote">«Durante la migración nos escribió a todos cada mañana con lo que venía. Nadie se perdió.»</p>
+   <p class="quote">«Me explicó el proceso del cliente con paciencia y en mi primera semana ya podía avanzar sola.»</p>
+   <p class="small">Solo tú ves estos motivos. Nadie sabe quién los escribió.</p></div>
+   <p class="example">Datos de ejemplo</p>
+   </div>`}
+};
+
+const TABS=[['home','Inicio','home'],['pillars','Pilares','pillars'],['hall','Salón','hall'],['me','Perfil','me']];
+const MAP=[['welcome','Ingreso'],['home','Inicio'],['pillars','Por qué reconocernos'],['pillar','Detalle de pilar'],['choose','Elegir persona'],['reason','Motivo'],['final','Votación final'],['reveal','Revelación'],['hall','Salón de Champions'],['me','Mi perfil']];
+const view=document.getElementById('view'),tabs=document.getElementById('tabs'),map=document.getElementById('map');
+
+function render(){
+ const s=cur();
+ view.innerHTML=`<div class="enter" style="display:flex;flex-direction:column;min-height:100%">${V[s]()}</div>`;
+ view.scrollTop=0;
+ const root=TABS.find(t=>t[0]===S.stack[0]);
+ tabs.hidden=s==='welcome';
+ tabs.innerHTML=TABS.map(t=>`<button data-a="tab" data-s="${t[0]}" aria-current="${root&&root[0]===t[0]}">${ICON[t[2]]}${t[1]}</button>`).join('');
+ map.innerHTML=MAP.map((m,i)=>`<button data-a="jump" data-s="${m[0]}" aria-current="${s===m[0]}"><span class="n">${String(i+1).padStart(2,'0')}</span>${m[1]}</button>`).join('');
+ document.querySelectorAll('[data-phase]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.phase===S.phase));
+ bindInputs();
+ S.flash=null;
+}
+function bindInputs(){
+ const q=document.getElementById('q');
+ if(q){q.addEventListener('input',e=>{S.q=e.target.value;const pos=e.target.selectionStart;render();const n=document.getElementById('q');n.focus();n.setSelectionRange(pos,pos)})}
+ const r=document.getElementById('reason');
+ if(r){r.addEventListener('input',e=>{S.draft.reason=e.target.value;const n=e.target.value.trim().length;
+   document.getElementById('cnt').innerHTML=n<40?`Faltan <b>${40-n}</b> caracteres`:'<b>Listo</b> para enviar';
+   e.target.closest('.pad').querySelector('.count span:last-child').textContent=n+' / 40 mín.';
+   document.getElementById('send').disabled=n<40;})}
+}
+const go=s=>{S.stack.push(s);render()};
+const root=s=>{S.stack=[s];render()};
+function nextPending(){return PILLARS.find(p=>!S.noms[p.id])}
+
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-phase]');
+ if(b){S.phase=b.dataset.phase;S.reveal=0;root('home');return}
+ const t=e.target.closest('[data-a]');if(!t||t.disabled)return;
+ const a=t.dataset.a,pid=t.dataset.p;
+ switch(a){
+  case 'enter':root('home');break;
+  case 'back':S.stack.pop();if(!S.stack.length)S.stack=['home'];render();break;
+  case 'tab':root(t.dataset.s);break;
+  case 'go':go(t.dataset.s);break;
+  case 'pillar':S.pillar=pid;go('pillar');break;
+  case 'nominate':{if(S.phase!=='nom')return;const n=S.noms[pid];S.draft={pillar:pid,id:n&&n!=='skip'?n.id:null,reason:n&&n!=='skip'?n.reason:''};S.q='';go('choose');break}
+  case 'pick':S.draft.id=t.dataset.id;render();break;
+  case 'skip':S.noms[S.draft.pillar]='skip';S.flash='Listo. '+PL(S.draft.pillar).name+' queda sin nominación este mes.';root('home');break;
+  case 'toReason':go('reason');break;
+  case 'start':{const ta=document.getElementById('reason');S.draft.reason=t.dataset.t;render();const n=document.getElementById('reason');n.focus();n.setSelectionRange(n.value.length,n.value.length);break}
+  case 'send':{S.noms[S.draft.pillar]={id:S.draft.id,reason:S.draft.reason};const np=nextPending();S.flash='Nominaste a '+P(S.draft.id).name+' en '+PL(S.draft.pillar).name+'.'+(np?' Te queda '+np.name+'.':' Completaste los 4 pilares.');root('home');break}
+  case 'final':S.fpillar=pid;go('final');break;
+  case 'fpick':S.finals[S.fpillar]=t.dataset.id;render();break;
+  case 'fconfirm':S.flash='Voto final registrado en '+PL(S.fpillar).name+'.';root('home');break;
+  case 'startReveal':S.reveal=0;go('reveal');break;
+  case 'nextReveal':S.reveal++;render();break;
+  case 'toHall':root('hall');break;
+  case 'jump':{const s=t.dataset.s;
+    if(s==='welcome'){S.stack=['welcome'];render();break}
+    if(['choose','reason'].includes(s)){S.phase='nom';const p=nextPending()||PILLARS[2];S.draft={pillar:p.id,id:s==='reason'?'mc':null,reason:''};S.q='';S.stack=['home','choose'].concat(s==='reason'?['reason']:[]);render();break}
+    if(s==='pillar'){S.pillar='respeto';S.stack=['pillars','pillar'];render();break}
+    if(s==='final'){S.phase='final';S.fpillar='responsabilidad';S.stack=['home','final'];render();break}
+    if(s==='reveal'){S.phase='reveal';S.reveal=0;S.stack=['home','reveal'];render();break}
+    root(s);break}
+ }
+});
+S.stack=['welcome'];
+render();
+</script>
