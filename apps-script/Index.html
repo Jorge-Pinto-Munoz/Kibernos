@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>Rekonoce · Kiber Champions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;1,400&display=swap">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="busybar" id="busy" hidden><i></i></div>
+    <main class="view" id="view"></main>
+    <nav class="tabs" id="tabs" aria-label="Navegación" hidden></nav>
+    <div id="overlay"></div>
+  </div>
+  <?!= include('Pins'); ?>
+  <?!= include('App'); ?>
+</body>
+</html>
