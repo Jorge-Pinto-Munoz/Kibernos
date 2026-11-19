@@ -3,49 +3,8 @@
    Uso: node scripts/build-dist.js && node --test qa/gas.test.js */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs'), path = require('path'), vm = require('vm');
+const { makeEnv } = require('./gasmock.js');
 
-function makeSheet(name) {
-  const grid = []; // filas de valores
-  const sh = {
-    name, grid,
-    getLastRow: () => grid.length,
-    appendRow: row => { grid.push(row.slice()); return sh; },
-    insertRowAfter: r => { grid.splice(r, 0, []); return sh; },
-    setFrozenRows: () => sh,
-    getRange: (r, c, nr = 1, nc = 1) => ({
-      getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => { const v = (grid[r - 1 + i] || [])[c - 1 + j]; return v === undefined ? '' : v; })),
-      setValues(vals) { vals.forEach((row, i) => { const R = grid[r - 1 + i] || (grid[r - 1 + i] = []); row.forEach((v, j) => { R[c - 1 + j] = v; }); }); return this; },
-      setValue(v) { const R = grid[r - 1] || (grid[r - 1] = []); R[c - 1] = v; return this; },
-      setFontWeight() { return this; }
-    })
-  };
-  return sh;
-}
-function makeEnv() {
-  const sheets = {};
-  const ss = {
-    getSheetByName: n => sheets[n] || null,
-    insertSheet: n => (sheets[n] = makeSheet(n)),
-    getSheets: () => Object.values(sheets),
-    deleteSheet: s => { delete sheets[s.name]; },
-    getUrl: () => 'https://docs.google.com/spreadsheets/d/x', getId: () => 'x'
-  };
-  const props = {}, cache = {}, logs = [];
-  const ctx = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, create: () => ss },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
-    CacheService: { getScriptCache: () => ({ get: k => (k in cache ? cache[k] : null), put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
-    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    Utilities: { getUuid: () => 'tok-' + Math.random().toString(36).slice(2) },
-    Logger: { log: m => logs.push(m) }, console: { error: m => logs.push(m) },
-    HtmlService: {}, JSON, Date, Math, Object, Array, String, Number, Error
-  };
-  vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'dist', 'Code.gs'), 'utf8'), ctx);
-  const call = (name, ...args) => JSON.parse(ctx.rkApi(name, args));
-  return { ctx, sheets, cache, props, logs, call };
-}
 const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con paciencia cada paso.';
 const vote = m => Object.fromEntries(['colaboracion', 'responsabilidad', 'respeto', 'comunicacion'].map(p => [p, m[p] ? { nominee: m[p], reason: R } : { skip: true }]));
 

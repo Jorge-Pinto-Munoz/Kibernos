@@ -369,10 +369,17 @@ function ini(n){var w=n.split(' ').filter(function(x){return x&&x[0]===x[0].toUp
 function monthWord(){return G&&G.cycle.month?G.cycle.month.split(' ')[0]:''}
 
 function hasServer(){try{return !!(window.google&&google.script&&google.script.run)}catch(e){return false}}
+/* Fuera de Apps Script (Netlify u otro hosting) se habla con el mismo servidor por HTTPS */
+function apiFetch(name,args){
+  return fetch(APP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({name:name,args:args}),redirect:'follow'})
+    .catch(function(){throw new Error('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.')})
+    .then(function(r){return r.text()})
+    .then(function(t){var r;try{r=JSON.parse(t)}catch(e){throw new Error('El servidor no respondió como se esperaba. Revisa que la implementación esté publicada para «Cualquier usuario».')}if(!r.ok)throw new Error(r.error);return r.data});
+}
 function api(name){
   var args=[].slice.call(arguments,1);
+  if(!hasServer())return APP_URL?apiFetch(name,args):Promise.reject(new Error('NO_SERVER'));
   return new Promise(function(res,rej){
-    if(!hasServer()){rej(new Error('NO_SERVER'));return}
     google.script.run
       .withSuccessHandler(function(s){var r;try{r=JSON.parse(s)}catch(e){rej(new Error('Respuesta inválida del servidor.'));return}r.ok?res(r.data):rej(new Error(r.error))})
       .withFailureHandler(function(){rej(new Error('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.'))})

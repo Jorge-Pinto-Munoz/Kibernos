@@ -50,6 +50,14 @@ Las primeras columnas las usa la app (ids cortos como `rm`); las de la derecha s
 
 Si la Hoja se creó con una versión anterior, vuelve a ejecutar `setup`: agrega los encabezados nuevos y completa los nombres de las filas existentes.
 
+## Publicar en Netlify (opcional)
+
+El mismo `dist/Index.html` funciona fuera de Google: carga desde Netlify y guarda en la Hoja a través del link `/exec` (función `doPost` de `Code.gs`).
+
+1. Crea una carpeta con el archivo renombrado a `index.html` (minúscula).
+2. En Netlify: **Add new site → Deploy manually** y arrastra la carpeta.
+3. La implementación de Apps Script debe estar publicada para **Cualquier usuario** y con la versión que incluye `doPost`.
+
 ## Ajustes del día a día
 
 - **Equipo:** pestaña `Personas`. La columna `activo` en `FALSE` deja a la persona fuera de votar y de ser nominada (hoy Noelia Barrera y Sofía Calderón, por postnatal; votan 18 de 20 personas). Para sumar a alguien agrega una fila con un `id` único.

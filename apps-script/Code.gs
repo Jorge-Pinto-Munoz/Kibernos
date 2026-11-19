@@ -62,6 +62,22 @@ function indexName_() {
   throw new Error('Falta el archivo HTML «Index». En el editor: + → HTML, nómbralo Index y pega Index.html. Luego Implementar → Nueva versión.');
 }
 
+/**
+ * API para la página publicada fuera de Google (por ejemplo Netlify).
+ * Recibe {name, args} como texto JSON y responde lo mismo que rkApi.
+ * Se usa POST con Content-Type text/plain para evitar la consulta previa de CORS.
+ */
+function doPost(e) {
+  var out;
+  try {
+    var body = JSON.parse(e && e.postData && e.postData.contents || '{}');
+    out = rkApi(String(body.name || ''), body.args || []);
+  } catch (err) {
+    out = JSON.stringify({ ok: false, error: 'Solicitud inválida.' });
+  }
+  return ContentService.createTextOutput(out).setMimeType(ContentService.MimeType.JSON);
+}
+
 function include(name) {
   return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
