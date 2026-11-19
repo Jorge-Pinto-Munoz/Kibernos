@@ -83,7 +83,9 @@ var ICON={
  check:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
 };
 function medal(pid,size,cls){var i=Math.round(size*.62);return '<span class="medal '+(cls||'')+'" style="width:'+size+'px;height:'+size+'px"><img src="'+PIN_SRC[pid]+'" alt="" width="'+i+'" height="'+i+'" style="width:'+i+'px;height:'+i+'px"></span>'}
-function av(p,size){size=size||40;return '<span class="av a-'+p.area+'" style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*.32)+'px" aria-hidden="true">'+esc(ini(p.name))+'</span>'}
+function av(p,size){size=size||40;var src=window.AVATAR_SRC&&AVATAR_SRC[p.id];
+ return '<span class="av a-'+p.area+'" style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*.32)+'px" aria-hidden="true">'+
+  (src?'<img src="'+src+'" alt="" width="'+size+'" height="'+size+'" style="width:'+size+'px;height:'+size+'px">':esc(ini(p.name)))+'</span>'}
 function cur(){return S.stack[S.stack.length-1]}
 function appbar(right){return '<div class="appbar"><button class="back" data-a="back">'+ICON.back+'Volver</button><span class="small">'+(right||'')+'</span></div>'}
 function head(k,t,lead){return '<div class="hgroup"><span class="kicker">'+k+'</span><span class="ray"></span><h1 class="h1">'+t+'</h1>'+(lead?'<p class="lead">'+lead+'</p>':'')+'</div>'}
@@ -217,7 +219,8 @@ V.reveal=function(){var i=S.reveal.i;var w=G.winners;
   '<div class="topline" style="width:100%"><button class="back" data-a="exitReveal">'+ICON.back+'Salir</button><span class="small">'+esc(G.cycle.month)+'</span></div>'+
   '<span class="kicker">Champion de '+p.name+'</span><span class="ray"></span>'+
   '<div class="rings"><span class="r r3"></span><span class="r"></span><span class="r r2"></span>'+medal(p.id,150)+'</div>'+
-  (win.ids.length?'<h1 class="nm" aria-label="'+esc(names)+'">'+letters+'</h1>'+
+  (win.ids.length?'<div class="rv-faces rise" style="animation-delay:.8s">'+win.ids.map(function(id){return av(P(id),64)}).join('')+'</div>'+
+  '<h1 class="nm" aria-label="'+esc(names)+'">'+letters+'</h1>'+
   '<p class="small rise" style="animation-delay:1.5s">'+(win.ids.length>1?'Pin compartido · ':'')+win.votes+' '+(win.votes===1?'voto':'votos')+' en la final · '+win.reasons.length+' '+(win.reasons.length===1?'reconocimiento':'reconocimientos')+'</p>'+
   '<div class="reasons">'+win.reasons.map(function(r,k){return '<p class="quote rise" style="animation-delay:'+(1.8+k*.25).toFixed(2)+'s">«'+esc(r)+'»</p>'}).join('')+'</div>':'<p class="lead">Este pilar no tuvo votos suficientes este mes.</p>')+
   '<div class="dots rise" style="animation-delay:1.6s">'+PILLARS.map(function(_,k){return '<i class="'+(k===i?'on':'')+'"></i>'}).join('')+'</div>'+
