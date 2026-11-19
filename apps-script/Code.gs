@@ -46,10 +46,19 @@ var TEAM = [
 
 /* ---------- Web app ---------- */
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index').evaluate()
+  return HtmlService.createTemplateFromFile(indexName_()).evaluate()
     .setTitle('ReKonoce · Kiber Champions')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setFaviconUrl('https://ssl.gstatic.com/docs/script/images/favicon.ico');
+}
+
+/** Busca el HTML principal aunque se haya nombrado con otra mayúscula o con «.html». */
+function indexName_() {
+  var names = ['Index', 'index', 'INDEX', 'Index.html', 'index.html', 'Index.html.html', 'Index ', 'Página', 'Pagina'];
+  for (var i = 0; i < names.length; i++) {
+    try { HtmlService.createHtmlOutputFromFile(names[i]); return names[i]; } catch (e) { }
+  }
+  throw new Error('Falta el archivo HTML «Index». En el editor: + → HTML, nómbralo Index y pega Index.html. Luego Implementar → Nueva versión.');
 }
 
 function include(name) {
