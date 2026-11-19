@@ -22,7 +22,9 @@ Web app mobile first para que el equipo se reconozca cada mes en los cuatro pila
 
 1. En Google Drive crea una Hoja de cálculo nueva, por ejemplo `Rekonoce · datos`.
 2. En la hoja: **Extensiones → Apps Script**.
-3. En el editor crea estos archivos y pega el contenido de la carpeta `apps-script/`:
+3. **Forma rápida:** pega `dist/Code.gs` en el archivo `Code.gs` del editor, crea un archivo HTML llamado `Index` y pega `dist/Index.html`. Después reemplaza el manifiesto (ver abajo). Para regenerar `dist/` tras un cambio: `node scripts/build-dist.js`.
+
+   **Forma por partes:** en el editor crea estos archivos y pega el contenido de la carpeta `apps-script/`:
    - Secuencia de comandos (`+` → Secuencia de comandos): `Code`, `Logic`
    - HTML (`+` → HTML): `Index`, `Styles`, `App`, `Pins`, `Avatars`
    - En **Configuración del proyecto** activa "Mostrar el archivo de manifiesto appsscript.json" y reemplázalo por `apps-script/appsscript.json`.
