@@ -108,9 +108,15 @@ function partBlock(){var n=G.votedCount,a=G.activeCount,pct=Math.round(n/Math.ma
   '<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div>'+(faces?'<div class="faces" aria-hidden="true">'+faces+'</div>':'')+'</div>'}
 function voteHero(){var c=G.cycle,st=c.stage,m=monthWord();
  if(st==='votacion')return '<section class="hero-card" aria-label="Votación abierta"><div class="topline"><span class="kicker">Votación de '+esc(m.toLowerCase())+'</span><span class="live"><i></i>Abierta</span></div>'+countdown(c,'Cierra en')+partBlock()+'</section>';
- if(st==='cerrado')return '<section class="hero-card"><span class="kicker">Votación de '+esc(m.toLowerCase())+'</span><b class="h2">La votación cerró</b><p class="small">Votaron '+G.votedCount+' de '+G.activeCount+'. Los Kiber Champions se revelan en la reunión de equipo.</p></section>';
- if(st==='revelado')return '<section class="hero-card"><span class="kicker">'+esc(G.cycle.month)+'</span><b class="h2">¡Ya tenemos Kiber Champions!</b><p class="small">Elige tu nombre para ver la revelación.</p></section>';
+ if(st==='cerrado')return '<section class="hero-card party">'+confettiArt()+'<span class="kicker">La votación de '+esc(m.toLowerCase())+' cerró</span><b class="party-title">Muy pronto conocerás a los ganadores de '+esc(m.toLowerCase())+'</b><p class="small">Votaron '+G.votedCount+' de '+G.activeCount+'. Los Kiber Champions se revelan en la reunión de equipo.</p></section>';
+ if(st==='revelado')return '<section class="hero-card party">'+confettiArt()+'<span class="kicker">Kiber Champions · '+esc(G.cycle.month)+'</span><b class="party-title">Conoce a los ganadores de '+esc(m.toLowerCase())+'</b><p class="small">Cuatro pilares, cuatro pines y todo lo que el equipo escribió.</p><button class="btn" data-a="startReveal">Ver a los ganadores</button></section>';
  return '<section class="hero-card"><span class="kicker">Kiber Champions</span><b class="h2">No hay una votación abierta</b><p class="small">Cuando se abra, aquí verás cuánto tiempo queda y cuántos han votado.</p></section>'}
+
+function confettiArt(){var cols=['#B2D5AD','#B6AAD1','#B9D5D1','#C6ECBB','#A69BCB','#2C2C2B'];var seed=11;function r(){seed=(seed*16807)%2147483647;return seed/2147483647}
+ var out='';for(var i=0;i<44;i++){var x=(1+r()*98).toFixed(1),y=(6+r()*30).toFixed(1),c=cols[Math.floor(r()*cols.length)],rot=Math.round(r()*180),k=r();
+  out+=k<.6?'<rect x="'+x+'%" y="'+y+'" width="9" height="4" rx="1" fill="'+c+'" transform="rotate('+rot+')" style="transform-box:fill-box;transform-origin:center"/>':
+   k<.85?'<circle cx="'+x+'%" cy="'+y+'" r="3" fill="'+c+'"/>':'<rect x="'+x+'%" y="'+y+'" width="5" height="5" fill="'+c+'" transform="rotate('+rot+')" style="transform-box:fill-box;transform-origin:center"/>'}
+ return '<svg class="party-art" aria-hidden="true" width="100%" height="44">'+out+'</svg>'}
 
 /* ---------- Pantallas ---------- */
 var V={};
@@ -147,11 +153,9 @@ function whyCard(){return '<button class="card" data-a="tab" data-s="pillars"><s
 
 V.home=function(){var st=stage(),me=P(S.who),m=monthWord(),c=G.cycle;
  if(st==='votacion'){
-  if(G.me.voted)return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'Gracias, '+esc(first(me.name))+'. Tu voto quedó registrado.','Los Kiber Champions se revelan cuando cierre la votación.')+
-   '<section class="hero-card">'+countdown(c,'Cierra en')+partBlock()+'</section>'+whyCard()+'</div>';
+  if(G.me.voted)return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'Gracias, '+esc(first(me.name))+'. Tu voto quedó registrado.','Los Kiber Champions se revelan cuando cierre la votación.')+whyCard()+'</div>';
   var done=PILLARS.filter(function(p){return S.draft[p.id]}).length,closed=expired();
   return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'¿A quién reconoces en '+m.toLowerCase()+'?','Elige a una persona por pilar y cuenta por qué. Al final envías todo junto.')+
-   '<section class="hero-card">'+countdown(c,'Cierra en')+partBlock()+'</section>'+
    (closed?'<div class="notice"><b>El plazo terminó.</b><span>Ya no se reciben votos. Pronto revelamos a los Kiber Champions.</span></div>':'')+
    '<div class="list">'+PILLARS.map(function(p){var n=S.draft[p.id];var sub=n?(n.skip?'Sin voto este mes':'Elegiste a '+esc(P(n.nominee).name)):p.tag;
     return '<button class="prow" data-a="nominate" data-p="'+p.id+'" '+(closed?'disabled':'')+'>'+medal(p.id,48,n?'done':'')+'<span class="t"><b>'+p.name+'</b><span>'+sub+'</span></span>'+(n?'<span class="st">'+(n.skip?'Omitido':'Listo')+'</span>':'<span class="st pend">Pendiente</span>')+'</button>'}).join('')+'</div>'+
@@ -398,7 +402,7 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'startReveal':run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'adminReveal':run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'nextReveal':S.reveal={i:S.reveal.i+1,phase:'count'};render();break;
-  case 'exitReveal':S.stack=[S.token?'admin':'winners'];render();break;
+  case 'exitReveal':S.stack=[S.token?'admin':S.who?'winners':'login'];render();break;
   case 'key':{var k=t.getAttribute('data-k');S.pinErr='';if(k==='del')S.pin=S.pin.slice(0,-1);else if(S.pin.length<4)S.pin+=k;
     if(S.pin.length===4){var pin=S.pin;S.pin='';render(true);busy(true);
       api('adminLogin',pin).then(function(d){S.token=d.token;sset('rk-token',d.token,'s');return api('admin',d.token)})

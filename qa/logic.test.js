@@ -56,6 +56,8 @@ test('validaciones del voto', () => {
   const t = setup(); open(t);
   assert.match(t.bad('vote', 'mv', votes({ colaboracion: 'mv' })), /votar por ti/);
   assert.match(t.bad('vote', 'mv', votes({ colaboracion: 'nb' })), /no está disponible/, 'Noelia está inactiva');
+  assert.match(t.bad('vote', 'mv', votes({ respeto: 'sc' })), /no está disponible/, 'Sofía está inactiva');
+  assert.match(t.bad('vote', 'sc', votes({})), /equipo activo/);
   assert.match(t.bad('vote', 'nb', votes({})), /equipo activo/);
   const short = votes({ respeto: 'mc' }); short.respeto.reason = 'corto';
   assert.match(t.bad('vote', 'mv', short), /al menos 40/);
@@ -102,7 +104,7 @@ test('ganador por pilar: más votos; empate en el primer lugar = pin compartido'
    ['mo', { colaboracion: 'et', respeto: 'mc' }],
    ['pr', { colaboracion: 'et', respeto: 'mc' }],
    ['gc', { colaboracion: 'et' }],
-   ['sc', { colaboracion: 'dm' }]].forEach(([v, m]) => t.ok('vote', v, votes(m)));
+   ['rj', { colaboracion: 'dm' }]].forEach(([v, m]) => t.ok('vote', v, votes(m)));
   const live = t.ok('admin', t.token);
   assert.deepEqual(live.leaders.colaboracion.sort(), ['et', 'rm'], 'el panel muestra quién va ganando');
   assert.equal(t.ok('state', 'bb').winners, null);

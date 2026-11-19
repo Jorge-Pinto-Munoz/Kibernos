@@ -304,7 +304,7 @@ var TEAM = [
   ['nb', 'Noelia Barrera', 'talent', 'Postnatal', false],
   ['rj', 'Rossana Jiménez', 'support', '', true],
   ['dm', 'Daniela Moreno', 'support', '', true],
-  ['sc', 'Sofía Calderón', 'support', '', true]
+  ['sc', 'Sofía Calderón', 'support', 'Postnatal', false]
 ];
 
 /* ---------- Web app ---------- */

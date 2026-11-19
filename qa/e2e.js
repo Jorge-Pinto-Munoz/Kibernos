@@ -27,9 +27,9 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
     assert.match(await text(), /Votación de .* abierta/);
     await page.click('.tabs [data-s="logout"]');
   });
-  await step('«¿Quién eres?» muestra el contador y 0 de 19', async () => {
+  await step('«¿Quién eres?» muestra el contador y 0 de 18', async () => {
     const t = await text();
-    assert.match(t, /Cierra en/); assert.match(t, /DÍAS/i); assert.match(t, /0 de 19/);
+    assert.match(t, /Cierra en/); assert.match(t, /DÍAS/i); assert.match(t, /0\s*de 18/);
   });
   await step('elige su nombre, ve el aviso y puede volver atrás', async () => {
     await page.fill('#q', 'manuel'); await page.click('[data-id="mo"]');
@@ -52,20 +52,21 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
   await step('omite comunicación, revisa y envía', async () => {
     await page.click('[data-p="comunicacion"]'); await page.click('[data-a="skip"]'); await ready();
     await page.click('[data-a="review"]'); await page.click('[data-a="sendNom"]');
-    const t = await text(); assert.match(t, /Tu voto quedó registrado/); assert.match(t, /1 de 19/);
+    const t = await text(); assert.match(t, /Tu voto quedó registrado/); assert.doesNotMatch(t, /Cierra en/);
   });
   await step('al volver, Manuel aparece con ✓ en la lista', async () => {
     await page.click('[data-a="switch"]'); await ready();
     assert.equal(await page.locator('[data-id="mo"] .tick').count(), 1);
+    assert.match(await text(), /1\s*de 18/);
     assert.equal(await page.locator('[data-id="bb"] .tick').count(), 0);
   });
-  await step('el admin ve participación 1/19, quién falta y quién va ganando', async () => {
+  await step('el admin ve participación 1/18, quién falta y quién va ganando', async () => {
     await page.click('[data-a="toPin"]'); await pin('1234'); await ready();
     assert.match(await text(), /PIN incorrecto/);
     await pin('5591'); await ready();
-    assert.match(await text(), /1\s*\/19/);
+    assert.match(await text(), /1\s*\/18/);
     await page.click('.tabs [data-s="adminPeople"]'); await ready(); await page.click('[data-f="missing"]');
-    const t = await text(); assert.match(t, /18 personas aún no votan/); assert.doesNotMatch(t, /Manuel Orellana/);
+    const t = await text(); assert.match(t, /17 personas aún no votan/); assert.doesNotMatch(t, /Manuel Orellana/);
     await page.click('.tabs [data-s="adminVotes"]');
     assert.match(await text(), /va ganando/);
   });

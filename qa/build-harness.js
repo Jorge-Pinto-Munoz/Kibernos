@@ -29,7 +29,7 @@ const fakeServer = `
   var NOM=[['rm',{colaboracion:'et',responsabilidad:'vc',respeto:'mc',comunicacion:'bb'}],['bb',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'pr'}],
     ['mb',{colaboracion:'rm',responsabilidad:'mr',respeto:'mc',comunicacion:'bb'}],['vc',{colaboracion:'rm',responsabilidad:'mr',respeto:'na',comunicacion:'mb'}],
     ['na',{colaboracion:'et',responsabilidad:'vc',respeto:'mc',comunicacion:'bb'}],['mc',{colaboracion:'dm',responsabilidad:'rj',respeto:'na',comunicacion:'mb'}],
-    ['mr',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'pr'}],['et',{colaboracion:'dm',responsabilidad:'mr',respeto:'sc',comunicacion:'bb'}],
+    ['mr',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'pr'}],['et',{colaboracion:'dm',responsabilidad:'mr',respeto:'na',comunicacion:'bb'}],
     ['pr',{colaboracion:'et',responsabilidad:'rj',respeto:'mc',comunicacion:'mb'}],['rj',{colaboracion:'et',responsabilidad:'vc',respeto:'na',comunicacion:'pr'}],
     ['dm',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'bb'}]];
   var SCEN={

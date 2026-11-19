@@ -27,6 +27,7 @@ const SCREENS = [
   ['quien-eres-sin-votacion', 'idle', null],
   ['quien-eres-cerrada', 'cerrado', null],
   ['quien-eres-revelado', 'revelado', null],
+  ['revelacion-sin-nombre', 'revelado', seq(click('[data-a="startReveal"]'), ui(`(()=>{const S=__rk.S;S.reveal={i:0,phase:'show'};__rk.render()})()`))],
   ['aviso-anonimato', 'nom', click('[data-id="mo"]')],
   ['pin', 'nom', click('[data-a="toPin"]')],
   ['pin-error', 'nom', seq(click('[data-a="toPin"]'), typePin('1111'))],

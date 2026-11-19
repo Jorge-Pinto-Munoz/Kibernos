@@ -4,7 +4,7 @@
   --bg:#FFFFFF; --warm:#F9F8F7; --ink:#2C2C2B; --ink-2:#474747; --ink-3:#5F5E5A; --grey:#A5A3A2;
   --line:#E6E5E3; --line-2:#D0D0CD; --green:#B2D5AD; --green-wash:#DDE8D7; --green-fresh:#C6ECBB;
   --lilac:#B6AAD1; --lilac-wash:#ECE8F4; --silver:#C2C2C2; --alert:#A4262C; --alert-wash:#FDEBEC;
-  --font:"Gilroy","Poppins",Arial,sans-serif; --r:6px;
+  --font:"Poppins",Arial,sans-serif; --r:6px;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -142,6 +142,12 @@ textarea:focus,input:focus,select:focus{outline:none;border-color:var(--ink)}
 .tick.sm{width:18px;height:18px}.tick.sm svg{width:11px;height:11px}
 .legend{display:flex;align-items:center;gap:6px}
 .person.voted{border-color:var(--green)}
+
+.hero-card.party{position:relative;overflow:hidden;background:var(--warm);gap:10px;padding:56px 18px 20px}
+.hero-card.party > *:not(.party-art){position:relative;z-index:1}
+.party-art{position:absolute;top:0;left:0;right:0;height:44px;z-index:0;pointer-events:none}
+.party-title{font-weight:600;font-size:24px;line-height:1.2;color:var(--ink);text-wrap:balance}
+@media (prefers-reduced-motion:no-preference){.party-art{animation:partyIn .9s cubic-bezier(.2,.8,.2,1) both}@keyframes partyIn{from{opacity:0;transform:scale(1.06)}}}
 
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
