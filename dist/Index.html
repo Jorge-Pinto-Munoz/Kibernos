@@ -368,9 +368,11 @@ function first(n){return n.split(' ')[0]}
 function ini(n){var w=n.split(' ').filter(function(x){return x&&x[0]===x[0].toUpperCase()});if(!w.length)w=[n];return (w[0][0]+(w.length>1?w[w.length-1][0]:'')).toUpperCase()}
 function monthWord(){return G&&G.cycle.month?G.cycle.month.split(' ')[0]:''}
 
+function hasServer(){try{return !!(window.google&&google.script&&google.script.run)}catch(e){return false}}
 function api(name){
   var args=[].slice.call(arguments,1);
   return new Promise(function(res,rej){
+    if(!hasServer()){rej(new Error('NO_SERVER'));return}
     google.script.run
       .withSuccessHandler(function(s){var r;try{r=JSON.parse(s)}catch(e){rej(new Error('Respuesta inválida del servidor.'));return}r.ok?res(r.data):rej(new Error(r.error))})
       .withFailureHandler(function(){rej(new Error('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.'))})
@@ -443,7 +445,10 @@ function confettiArt(){var cols=['#B2D5AD','#B6AAD1','#B9D5D1','#C6ECBB','#A69BC
 
 /* ---------- Pantallas ---------- */
 var V={};
-V.loading=function(){return S.fatal?'<div class="center-screen"><span class="wm">KIBERNUM</span><b class="h2">No pudimos cargar ReKonoce</b><p class="lead">'+esc(S.fatal)+'</p><button class="btn" data-a="retry" style="max-width:260px">Intentar de nuevo</button></div>':
+V.loading=function(){if(S.fatal==='NO_SERVER')return '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><b class="h2">Abre ReKonoce desde su link</b>'+
+  '<p class="lead">Este archivo solo funciona publicado en Google Apps Script. Abierto directo en el navegador no puede guardar votos.</p>'+
+  '<a class="btn" href="'+esc(APP_URL)+'" target="_top" style="max-width:260px;text-decoration:none">Abrir ReKonoce</a></div>';
+ return S.fatal?'<div class="center-screen"><span class="wm">KIBERNUM</span><b class="h2">No pudimos cargar ReKonoce</b><p class="lead">'+esc(S.fatal)+'</p><button class="btn" data-a="retry" style="max-width:260px">Intentar de nuevo</button></div>':
   '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><p class="lead">Cargando ReKonoce…</p></div>'};
 
 V.login=function(){var q=S.q.toLowerCase();var voted={};(G.votedIds||[]).forEach(function(id){voted[id]=1});
