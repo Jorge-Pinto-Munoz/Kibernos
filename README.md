@@ -24,7 +24,7 @@ Web app mobile first para que el equipo se reconozca cada mes en los cuatro pila
 2. En la hoja: **Extensiones → Apps Script**.
 3. En el editor crea estos archivos y pega el contenido de la carpeta `apps-script/`:
    - Secuencia de comandos (`+` → Secuencia de comandos): `Code`, `Logic`
-   - HTML (`+` → HTML): `Index`, `Styles`, `App`, `Pins`
+   - HTML (`+` → HTML): `Index`, `Styles`, `App`, `Pins`, `Avatars`
    - En **Configuración del proyecto** activa "Mostrar el archivo de manifiesto appsscript.json" y reemplázalo por `apps-script/appsscript.json`.
 4. Elige la función `setup` en la barra superior y presiona **Ejecutar**. Autoriza los permisos. Esto crea las pestañas, carga al equipo y guarda el PIN.
 5. **Implementar → Nueva implementación → Aplicación web**.
@@ -61,3 +61,7 @@ npm run qa
 - `npm run qa:e2e`: recorrido completo a clics, del ingreso a la revelación y el cierre del mes.
 
 `docs/mockup/index.html` es la demo navegable generada por el mismo script (datos de ejemplo, se reinicia al recargar).
+
+## Fotos del equipo
+
+Las fotos están en `assets/avatars/<id>.jpg` (el `id` de la pestaña `Personas`). Para cambiar o sumar una, reemplaza el archivo y ejecuta `python3 scripts/build-avatars.py .`: regenera `apps-script/Avatars.html`, que luego se pega en el editor de Apps Script. Quien no tenga foto aparece con sus iniciales.
