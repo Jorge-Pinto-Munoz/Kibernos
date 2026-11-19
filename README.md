@@ -38,7 +38,7 @@ Alternativa con terminal: `npx @google/clasp login`, luego `npx @google/clasp cr
 
 ## Ajustes del día a día
 
-- **Equipo:** pestaña `Personas`. La columna `activo` en `FALSE` deja a la persona fuera de votar y de ser nominada (hoy Noelia Barrera, por postnatal). Para sumar a alguien agrega una fila con un `id` único.
+- **Equipo:** pestaña `Personas`. La columna `activo` en `FALSE` deja a la persona fuera de votar y de ser nominada (hoy Noelia Barrera, por postnatal; votan 18 de 19 personas). Para sumar a alguien agrega una fila con un `id` único.
 - **Cambiar el PIN:** Configuración del proyecto → Propiedades del script → `ADMIN_PIN`.
 - **Seguridad del PIN:** se valida en el servidor, nunca viaja al teléfono. Tras 5 intentos fallidos se bloquea 10 minutos. La sesión de admin dura 6 horas.
 
