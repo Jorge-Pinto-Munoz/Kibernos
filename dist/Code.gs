@@ -106,6 +106,7 @@ var RK = (function () {
       votedCount: active.filter(function (p) { return voted[p.id]; }).length,
       me: null,
       winners: null,
+      recognitions: null,
       history: store.getHistory()
     };
     if (personId && idx[personId]) state.me = { id: personId, voted: !!voted[personId] };
@@ -117,6 +118,13 @@ var RK = (function () {
         var reasons = [];
         w.winners.forEach(function (id) { reasons = reasons.concat(reasonsFor(ballots, pid, id)); });
         state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons };
+      });
+      // Todas las personas que recibieron votos, con lo que les escribieron (nunca quién)
+      state.recognitions = {};
+      PILLARS.forEach(function (pid) {
+        state.recognitions[pid] = tally(ballots, pid, idx)
+          .filter(function (x) { return idx[x.id] && idx[x.id].active; })
+          .map(function (x) { return { id: x.id, reasons: reasonsFor(ballots, pid, x.id) }; });
       });
     }
     return state;

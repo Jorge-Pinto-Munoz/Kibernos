@@ -112,6 +112,7 @@ test('ganador por pilar: más votos; empate en el primer lugar = pin compartido'
   t.ok('adminClose', t.token);
   assert.match(t.bad('vote', 'mv', votes({})), /etapa actual/, 'cerrada no se vota');
   assert.equal(t.ok('state', 'bb').winners, null, 'los ganadores no se ven antes de revelarlos');
+  assert.equal(t.ok('state', 'bb').recognitions, null, 'los mensajes no se ven antes de revelar');
   const a = t.ok('admin', t.token);
   assert.deepEqual(a.winners.colaboracion.sort(), ['et', 'rm']);
   assert.deepEqual(a.winners.responsabilidad, ['vc']);
@@ -125,6 +126,12 @@ test('ganador por pilar: más votos; empate en el primer lugar = pin compartido'
   assert.equal(rev.winners.respeto.reasons.length, 5, 'muestra todos los motivos del ganador');
   assert.equal(rev.winners.colaboracion.ids.length, 2);
   assert.equal(rev.winners.colaboracion.reasons.length, 6);
+  // Todos los reconocidos con sus mensajes, sin quién los escribió
+  assert.deepEqual(rev.recognitions.colaboracion.map(x => x.id), ['et', 'rm', 'dm']);
+  assert.equal(rev.recognitions.colaboracion.find(x => x.id === 'dm').reasons.length, 1);
+  assert.deepEqual(rev.recognitions.comunicacion, [], 'quien no recibió votos no aparece');
+  assert.ok(!JSON.stringify(rev.recognitions).match(/"(bb|mb|na|mo|pr|gc|rj)"/), 'no aparece ningún votante');
+  assert.equal(t.ok('state', 'bb').recognitions !== null, true);
 
   t.ok('adminArchive', t.token);
   const after = t.ok('state', 'bb');

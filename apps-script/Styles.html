@@ -149,6 +149,16 @@ textarea:focus,input:focus,select:focus{outline:none;border-color:var(--ink)}
 .party-title{font-weight:600;font-size:24px;line-height:1.2;color:var(--ink);text-wrap:balance}
 @media (prefers-reduced-motion:no-preference){.party-art{animation:partyIn .9s cubic-bezier(.2,.8,.2,1) both}@keyframes partyIn{from{opacity:0;transform:scale(1.06)}}}
 
+/* Ganadores tocables y mensajes recibidos */
+button.wrow{width:100%;text-align:left;min-height:60px}
+.wrow.tap:active{background:var(--warm)}
+.recog-head{position:relative;width:max-content;margin:6px auto 0}
+.recog-head .av{border:3px solid var(--bg)}
+.recog-pin{position:absolute;right:-12px;bottom:-6px}
+.recog-pin .medal{border:2px solid var(--bg)}
+.st.champ{background:var(--lilac-wash)}
+.card-quote{background:var(--warm);border-radius:0 var(--r) var(--r) 0;padding:10px 14px}
+
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
 .cd .lbl{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;font-size:12px;color:var(--ink-3)}

@@ -9,7 +9,7 @@ Web app mobile first para que el equipo se reconozca cada mes en los cuatro pila
 | Abrir votación | Admin | Elige el mes que se evalúa y programa la fecha y hora límite. Desde ese momento todos ven el contador. |
 | Votación | Equipo | En «¿Quién eres?» se ve el contador, cuántos han votado de cuántos y un ✓ junto a quien ya votó. Cada persona elige su nombre, lee el aviso de anonimato y vota por 1 persona por pilar con un motivo (mín. 40 caracteres). Puede omitir un pilar. Envía todo junto y ya no se puede cambiar. |
 | Cerrar votación | Admin | Gana quien tenga más votos en cada pilar. Si hay empate en el primer lugar, el pin es compartido. Los resultados quedan guardados sin mostrarse. |
-| Mostrar ganadores | Admin | Todos ven la revelación animada (3-2-1, el pin cae, confeti) con los reconocimientos anónimos debajo. |
+| Mostrar ganadores | Admin | Todos ven la revelación animada (3-2-1, el pin cae, confeti) con los reconocimientos anónimos debajo. Cada ganador se puede tocar para leer lo que le escribieron, y «Ver a todos los reconocidos» muestra a cada persona que recibió votos con sus mensajes (nunca quién los escribió). |
 | Cerrar mes | Admin | El mes pasa al Salón de Champions y se puede abrir la votación del siguiente. |
 
 **Panel de administrador** (PIN `5591`): etapa actual, contador, cuántos votaron, lista de quién falta (con botón para copiar los nombres), cuántos votos recibió cada persona y quién va ganando. Puede cambiar la fecha límite mientras la votación está abierta.
@@ -57,7 +57,7 @@ npm run qa
 ```
 
 - `npm test`: 9 pruebas de lógica (PIN y bloqueo, fecha límite y extensión, autovoto, motivos, ✓ de quién votó, ganador y pin compartido, anonimato, orden de etapas).
-- `npm run qa:ui`: revisa 42 pantallas y estados en 5 anchos (320, 360, 390, 430 y 1280 px). Busca elementos que se salen de su contenedor o del teléfono, pines fuera de su círculo, solapes, texto recortado, imágenes rotas, botones de menos de 44 px, contraste bajo AA y errores de consola. Deja capturas en `qa/screens/` y el informe en `qa/REPORT.md`.
+- `npm run qa:ui`: revisa 47 pantallas y estados en 5 anchos (320, 360, 390, 430 y 1280 px). Busca elementos que se salen de su contenedor o del teléfono, pines fuera de su círculo, solapes, texto recortado, imágenes rotas, botones de menos de 44 px, contraste bajo AA y errores de consola. Deja capturas en `qa/screens/` y el informe en `qa/REPORT.md`.
 - `npm run qa:e2e`: recorrido completo a clics, del ingreso a la revelación y el cierre del mes.
 
 `docs/mockup/index.html` es la demo navegable generada por el mismo script (datos de ejemplo, se reinicia al recargar).

@@ -228,19 +228,42 @@ V.reveal=function(){var i=S.reveal.i;var w=G.winners;
   '<div class="reasons">'+win.reasons.map(function(r,k){return '<p class="quote rise" style="animation-delay:'+(1.8+k*.25).toFixed(2)+'s">«'+esc(r)+'»</p>'}).join('')+'</div>':'<p class="lead">Este pilar no tuvo votos suficientes este mes.</p>')+
   '<div class="dots rise" style="animation-delay:1.6s">'+PILLARS.map(function(_,k){return '<i class="'+(k===i?'on':'')+'"></i>'}).join('')+'</div>'+
   '<button class="btn rise" style="animation-delay:1.6s" data-a="nextReveal">'+(i===3?'Ver a los 4 Champions':'Siguiente pilar')+'</button></div>'};
+function winnerRows(winners,size){return PILLARS.map(function(p){var ids=(winners[p.id]||[]);
+  if(!ids.length)return '<div class="wrow">'+medal(p.id,size,'done')+'<span class="t"><span>'+p.name+'</span><b>Sin ganador</b></span></div>';
+  return ids.map(function(id){return '<button class="wrow tap" data-a="recog" data-p="'+p.id+'" data-id="'+id+'">'+medal(p.id,size,'done')+'<span class="t"><span>'+p.name+'</span><b>'+esc(P(id).name)+'</b></span>'+av(P(id),34)+ICON.chev+'</button>'}).join('')}).join('')}
+function currentWinners(){var w={};PILLARS.forEach(function(p){w[p.id]=(G.winners[p.id]||{ids:[]}).ids});return w}
 function revealSummary(){return '<div class="rv" style="text-align:left;align-items:stretch"><canvas class="confetti" id="confetti" aria-hidden="true"></canvas>'+
   '<div class="topline"><button class="back" data-a="exitReveal">'+ICON.back+'Salir</button><span class="small">'+esc(G.cycle.month)+'</span></div>'+
-  head(esc(G.cycle.month),'Los Kiber Champions del mes','Gracias a todos por reconocer lo mejor de los demás.')+
-  '<div class="wgrid">'+PILLARS.map(function(p){var ids=(G.winners[p.id]||{ids:[]}).ids;return '<div class="wrow rise">'+medal(p.id,44,'done')+'<span class="t"><span>'+p.name+'</span><b>'+(ids.map(function(id){return esc(P(id).name)}).join(' y ')||'Sin ganador')+'</b></span></div>'}).join('')+'</div>'+
+  head(esc(G.cycle.month),'Los Kiber Champions del mes','Toca a cada Champion para leer lo que le escribieron.')+
+  '<div class="wgrid">'+winnerRows(currentWinners(),44)+'</div>'+
+  '<button class="btn sec" data-a="allRecog">Ver a todos los reconocidos</button>'+
   '<button class="btn" data-a="exitReveal">Listo</button></div>'}
 
+/* Lo que le escribieron a una persona en un pilar (nunca quién) */
+function recogOf(pid,id){var list=(G.recognitions&&G.recognitions[pid])||[];for(var i=0;i<list.length;i++)if(list[i].id===id)return list[i];return {id:id,reasons:[]}}
+V.recog=function(){var p=PL(S.cur),x=P(S.rid),r=recogOf(S.cur,S.rid);var champ=G.winners&&G.winners[p.id]&&G.winners[p.id].ids.indexOf(x.id)>=0;var n=r.reasons.length;
+ return appbar(esc(G.cycle.month))+'<div class="pad">'+
+  '<div class="recog-head">'+av(x,84)+'<span class="recog-pin">'+medal(p.id,40,'done')+'</span></div>'+
+  '<div class="hgroup" style="justify-items:center;text-align:center"><span class="kicker">'+p.name+'</span><span class="ray"></span><h1 class="h1">'+esc(x.name)+'</h1>'+
+  (champ?'<span class="st champ">Kiber Champion de '+esc(monthWord().toLowerCase())+'</span>':'')+'</div>'+
+  '<div style="display:grid;gap:10px"><div class="topline"><span class="kicker">Lo que le escribieron</span><span class="small">'+n+' '+(n===1?'reconocimiento':'reconocimientos')+'</span></div>'+
+  (n?r.reasons.map(function(t){return '<p class="quote card-quote">«'+esc(t)+'»</p>'}).join(''):'<p class="small">No hay mensajes en este pilar.</p>')+'</div>'+
+  '<p class="small" style="display:flex;gap:6px;align-items:center">'+ICON.lock+'Los mensajes nunca muestran quién los escribió.</p></div>'};
+
+V.allRecog=function(){var R=G.recognitions||{};
+ return appbar(esc(G.cycle.month))+'<div class="pad">'+head('Kiber Champions · '+esc(G.cycle.month),'Todos los reconocidos','Cada persona que recibió votos este mes. Toca a alguien para leer lo que le escribieron.')+
+  PILLARS.map(function(p){var list=R[p.id]||[];var win=(G.winners[p.id]||{ids:[]}).ids;
+   return '<section class="group"><div style="display:flex;align-items:center;gap:10px;padding:6px 0 4px">'+medal(p.id,32)+'<b class="h2" style="font-size:15px">'+p.name+'</b><span class="small" style="margin-left:auto">'+list.length+' '+(list.length===1?'persona':'personas')+'</span></div>'+
+   (list.length?list.map(function(x){var q=P(x.id),n=x.reasons.length;return '<button class="person" data-a="recog" data-p="'+p.id+'" data-id="'+x.id+'">'+av(q)+'<span class="t"><b>'+esc(q.name)+'</b><small>'+n+' '+(n===1?'reconocimiento':'reconocimientos')+'</small></span>'+(win.indexOf(x.id)>=0?'<span class="st champ">Champion</span>':'')+ICON.chev+'</button>'}).join(''):'<p class="small">Nadie recibió votos en este pilar.</p>')+'</section>'}).join('')+
+  '<p class="small" style="display:flex;gap:6px;align-items:center">'+ICON.lock+'Solo aparece quien recibió votos. Nunca se muestra quién escribió cada mensaje.</p></div>'};
+
 V.winners=function(){var months=[];
- if(stage()==='revelado'&&G.winners){var w={};PILLARS.forEach(function(p){w[p.id]=G.winners[p.id].ids});months.push({month:G.cycle.month,winners:w})}
  months=months.concat(G.history||[]);
  return '<div class="pad">'+head('Kiber Champions','Salón de Champions','Cada fila es un pin entregado. Los ganadores del mes en curso aparecen cuando se revelan.')+
   (stage()==='revelado'?'<button class="btn sec" data-a="startReveal">Ver la revelación de '+esc(monthWord().toLowerCase())+'</button>':'')+
+  (stage()==='revelado'&&G.winners?'<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(G.cycle.month)+'</b><span class="small">Toca para leer</span></div>'+winnerRows(currentWinners(),36)+'</div><button class="btn sec" data-a="allRecog">Ver a todos los reconocidos</button>':'')+
   (months.length?months.map(function(m){return '<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(m.month)+'</b><span class="small">4 pines</span></div>'+PILLARS.map(function(p){var ids=m.winners[p.id]||[];return '<div class="wrow">'+medal(p.id,36)+'<span class="t"><span>'+p.name+'</span><b>'+(ids.map(function(id){return esc(P(id).name)}).join(' y ')||'Sin ganador')+'</b></span></div>'}).join('')+'</div>'}).join(''):
-   '<div class="notice"><b>Todavía no hay Champions.</b><span>Aquí aparecerán los ganadores de cada mes.</span></div>')+'</div>'};
+   (stage()==='revelado'?'':'<div class="notice"><b>Todavía no hay Champions.</b><span>Aquí aparecerán los ganadores de cada mes.</span></div>'))+'</div>'};
 
 /* ---------- Administrador ---------- */
 V.pin=function(){return appbar()+'<div class="pad">'+head('Administrador','Ingresa el PIN','Solo para quien administra Kiber Champions.')+
@@ -401,6 +424,8 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'sendNom':run(api('vote',S.who,S.draft),function(g){setG(g);S.draft={};saveDraft();S.flash={msg:'Voto enviado. ¡Gracias por reconocer!'};root('home')});break;
   case 'startReveal':run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'adminReveal':run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
+  case 'recog':S.cur=pid;S.rid=t.getAttribute('data-id');go('recog');break;
+  case 'allRecog':go('allRecog');break;
   case 'nextReveal':S.reveal={i:S.reveal.i+1,phase:'count'};render();break;
   case 'exitReveal':S.stack=[S.token?'admin':S.who?'winners':'login'];render();break;
   case 'key':{var k=t.getAttribute('data-k');S.pinErr='';if(k==='del')S.pin=S.pin.slice(0,-1);else if(S.pin.length<4)S.pin+=k;

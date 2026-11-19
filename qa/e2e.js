@@ -82,6 +82,15 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
     for (let i = 0; i < 4; i++) { await page.click('[data-a="nextReveal"]'); if (i < 3) await page.waitForSelector('.rv .nm, .rv .lead', { timeout: 4000 }); }
     assert.match(await text(), /Los Kiber Champions del mes/);
   });
+  await step('toca a un ganador y lee lo que le escribieron; luego ve a todos los reconocidos', async () => {
+    await page.click('.wrow.tap'); let t = await text();
+    assert.match(t, /Lo que le escribieron/i); assert.match(t, /«/); assert.match(t, /nunca muestran quién/);
+    await page.click('[data-a="back"]'); await ready();
+    await page.click('[data-a="allRecog"]'); t = await text();
+    assert.match(t, /Todos los reconocidos/); assert.match(t, /reconocimiento/);
+    await page.click('.person[data-a="recog"]'); assert.match(await text(), /Lo que le escribieron/i);
+    await page.click('[data-a="back"]'); await ready(); await page.click('[data-a="back"]'); await ready();
+  });
   await step('cierra el mes y queda listo para el siguiente', async () => {
     await page.click('[data-a="exitReveal"]'); await page.click('[data-s="archive"]'); await page.click('[data-a="confirmSheet"]'); await ready();
     assert.match(await text(), /Abrir la votación del mes/);
