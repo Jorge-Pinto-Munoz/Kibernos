@@ -1,4 +1,4 @@
-/* Construye qa/out/harness.html: la app real de apps-script/ con un servidor simulado en el navegador.
+/* Construye qa/out/harness.html: la app real (ReKonoce) de apps-script/ con un servidor simulado en el navegador.
    El servidor simulado ejecuta el mismo Logic.gs, así la QA prueba el mismo código que corre en Google. */
 const fs = require('fs'), path = require('path');
 const { TEAM } = require('./load.js');
@@ -34,12 +34,9 @@ const fakeServer = `
     ['dm',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'bb'}]];
   var SCEN={
     idle:function(){},
-    nom:function(){h('adminOpen',tk(),'Noviembre 2026',Date.now()+3*DAY+5*3600e3);NOM.forEach(function(r){h('nominate',r[0],noms(r[1]))})},
+    nom:function(){h('adminOpen',tk(),'Noviembre 2026',Date.now()+3*DAY+5*3600e3);NOM.forEach(function(r){h('vote',r[0],noms(r[1]))})},
     'nom-expired':function(){SCEN.nom();clock=4*DAY},
-    fin:function(){SCEN.nom();h('adminCloseNom',tk(),Date.now()+2*DAY);['bb','mb','na','mr'].forEach(function(v){var f=h('state',v).finalists;var o={};P.forEach(function(p){var c=f[p].filter(function(x){return x.id!==v});if(c.length)o[p]=c[0].id});h('vote',v,o)})},
-    cerrado:function(){SCEN.fin(); 
-      STORE.getPeople().filter(function(x){return x.active}).forEach(function(x){var s=h('state',x.id);if(s.me.votedFin)return;var o={};P.forEach(function(p){var c=s.finalists[p].filter(function(f){return f.id!==x.id});if(c.length)o[p]=c[c.length>1&&x.id.charCodeAt(1)%2?1:0].id});h('vote',x.id,o)});
-      h('adminCloseFinal',tk())},
+    cerrado:function(){SCEN.nom();h('adminClose',tk())},
     revelado:function(){SCEN.cerrado();h('adminReveal',tk())},
     historia:function(){SCEN.revelado();h('adminArchive',tk())}
   };
@@ -65,7 +62,7 @@ console.log('qa/out/harness.html', (html.length / 1024).toFixed(0) + ' KB');
 /* Demo publicable (docs/mockup/index.html): la misma app con servidor simulado, como fragmento para el visor de Artifacts. */
 let demo = html
   .replace(/<!DOCTYPE html>\s*<html[^>]*>\s*<head>\s*<base target="_top">\s*<meta charset="utf-8">(<meta name="viewport"[^>]*>)?/, '')
-  .replace(/<title>[^<]*<\/title>/, '<title>Rekonoce Demo</title>')
+  .replace(/<title>[^<]*<\/title>/, '<title>ReKonoce Demo</title>')
   .replace(/<\/head>\s*<body>/, '<style>.app{height:100%}</style>')
   .replace(/<\/body>\s*<\/html>\s*$/, '');
 fs.writeFileSync(path.join(__dirname, '..', 'docs', 'mockup', 'index.html'), demo.trimStart());

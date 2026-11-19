@@ -1,9 +1,9 @@
 /**
- * Rekonoce · servidor Apps Script.
+ * ReKonoce · servidor Apps Script.
  *
  * - doGet() sirve la app (Index.html).
  * - rkApi(name, args) es el único endpoint que usa el cliente (google.script.run.rkApi).
- * - Los datos viven en una Hoja de cálculo de Google con 6 pestañas (ver setup()).
+ * - Los datos viven en una Hoja de cálculo de Google con 5 pestañas (ver setup()).
  *
  * Primera vez: ejecuta setup() desde el editor. Crea las pestañas, carga al equipo
  * y guarda el PIN de administrador (5591) en Propiedades del script.
@@ -14,12 +14,11 @@ var SHEETS = {
   personas: ['id', 'nombre', 'area', 'nota', 'activo'],
   participacion: ['ciclo', 'etapa', 'persona', 'fecha'],
   nominaciones: ['ciclo', 'pilar', 'persona', 'motivo'],
-  votosFinales: ['ciclo', 'pilar', 'persona'],
   historial: ['mes', 'ganadores']
 };
 var SHEET_TITLES = {
   config: 'Config', personas: 'Personas', participacion: 'Participacion',
-  nominaciones: 'Nominaciones', votosFinales: 'VotosFinales', historial: 'Historial'
+  nominaciones: 'Nominaciones', historial: 'Historial'
 };
 
 var TEAM = [
@@ -48,7 +47,7 @@ var TEAM = [
 /* ---------- Web app ---------- */
 function doGet() {
   return HtmlService.createTemplateFromFile('Index').evaluate()
-    .setTitle('Rekonoce · Kiber Champions')
+    .setTitle('ReKonoce · Kiber Champions')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setFaviconUrl('https://ssl.gstatic.com/docs/script/images/favicon.ico');
 }
@@ -107,7 +106,7 @@ function getSpreadsheet_(create) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
     if (!create) throw new Error('Falta ejecutar setup().');
-    ss = SpreadsheetApp.create('Rekonoce · datos');
+    ss = SpreadsheetApp.create('ReKonoce · datos');
   }
   props.setProperty('SHEET_ID', ss.getId());
   return ss;
@@ -170,17 +169,15 @@ function sheetStore_() {
       sh('participacion').appendRow([cycle, stage, person, ts]);
     },
     getBallots: function (kind, cycle) {
-      var k = kind === 'nom' ? 'nominaciones' : 'votosFinales';
-      return rows(k).filter(function (r) { return r[0] === cycle; }).map(function (r) {
-        return { pillar: r[1], nominee: String(r[2] || ''), reason: kind === 'nom' ? String(r[3] || '') : '' };
+      return rows('nominaciones').filter(function (r) { return r[0] === cycle; }).map(function (r) {
+        return { pillar: r[1], nominee: String(r[2] || ''), reason: String(r[3] || '') };
       });
     },
     /** Inserta cada papeleta en una fila al azar para que el orden no delate quién votó. */
     addBallots: function (kind, cycle, list) {
-      var k = kind === 'nom' ? 'nominaciones' : 'votosFinales';
-      var s = sh(k);
+      var s = sh('nominaciones');
       list.forEach(function (b) {
-        var row = kind === 'nom' ? [cycle, b.pillar, b.nominee, b.reason] : [cycle, b.pillar, b.nominee];
+        var row = [cycle, b.pillar, b.nominee, b.reason];
         var last = s.getLastRow();
         var after = 1 + Math.floor(Math.random() * last);
         if (after > last) after = last;

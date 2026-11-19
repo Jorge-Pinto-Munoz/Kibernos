@@ -1,8 +1,8 @@
-<title>Rekonoce Demo</title>
+<title>ReKonoce Demo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,600;1,400&display=swap">
   <style>
-/* Rekonoce · sistema de diseño Kibernum v3: blanco y gris cálido, tinta casi negra, verde y lila como gestos mínimos. */
+/* ReKonoce · sistema de diseño Kibernum v3: blanco y gris cálido, tinta casi negra, verde y lila como gestos mínimos. */
 :root{
   --bg:#FFFFFF; --warm:#F9F8F7; --ink:#2C2C2B; --ink-2:#474747; --ink-3:#5F5E5A; --grey:#A5A3A2;
   --line:#E6E5E3; --line-2:#D0D0CD; --green:#B2D5AD; --green-wash:#DDE8D7; --green-fresh:#C6ECBB;
@@ -121,6 +121,30 @@ textarea:focus,input:focus,select:focus{outline:none;border-color:var(--ink)}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--green);border-radius:3px}
 .center-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 22px;text-align:center}
+
+/* Bloque de votación: contador + participación */
+.hero-card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.hero-card .cd{border:0;padding:0}
+.hero-card .cd .digits{gap:8px}
+.hero-card .cd .digits div{background:var(--warm);border:1px solid var(--line);border-radius:10px;padding:10px 0 8px}
+.hero-card .cd .digits b{font-size:32px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink);background:var(--green-wash);border-radius:999px;padding:3px 10px}
+.live i{width:7px;height:7px;border-radius:50%;background:#5E9A55}
+@media (prefers-reduced-motion:no-preference){.live i{animation:livePulse 1.6s ease-in-out infinite}@keyframes livePulse{50%{opacity:.35}}}
+.part{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.part-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;color:var(--ink-3);font-size:14px}
+.part-top > span{display:flex;align-items:baseline;gap:6px}
+.part-top b{font-size:30px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.part-top em{font-style:normal;font-weight:600;color:var(--ink);font-size:14px;font-variant-numeric:tabular-nums}
+.part .bar{height:8px;border-radius:4px}
+.faces{display:flex;align-items:center;padding-left:6px;flex-wrap:wrap}
+.faces .av{margin-left:-6px;border:2px solid var(--bg)}
+.faces .more{margin-left:4px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.tick{width:26px;height:26px;border-radius:50%;background:var(--green);color:var(--ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tick svg{width:14px;height:14px}
+.tick.sm{width:18px;height:18px}.tick.sm svg{width:11px;height:11px}
+.legend{display:flex;align-items:center;gap:6px}
+.person.voted{border-color:var(--green)}
 
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
@@ -281,11 +305,15 @@ canvas.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:
 })(typeof module !== 'undefined' ? module.exports : window);
 </script>
 <script>/**
- * Rekonoce · lógica de negocio pura.
+ * ReKonoce · lógica de negocio pura.
  *
  * No usa ningún servicio de Google: recibe un "store" (dónde se guardan los datos)
  * y un "auth" (tokens de administrador). Así la misma lógica corre en Apps Script
  * (Code.gs, con Google Sheets) y en las pruebas locales (qa/, con memoria).
+ *
+ * Un mes = una votación: el admin la abre, cada persona vota una vez (una persona
+ * por pilar, con motivo) y al cerrar gana quien tiene más votos en cada pilar.
+ * Empate en el primer lugar = pin compartido.
  *
  * Anonimato: la participación (quién votó) y las papeletas (por quién se votó)
  * se guardan en tablas separadas. Las papeletas no llevan nombre ni hora.
@@ -296,7 +324,7 @@ var RK = (function () {
     colaboracion: 'Colaboración', responsabilidad: 'Responsabilidad',
     respeto: 'Respeto', comunicacion: 'Comunicación'
   };
-  var STAGES = ['idle', 'nominacion', 'finalistas', 'cerrado', 'revelado'];
+  var STAGES = ['idle', 'votacion', 'cerrado', 'revelado'];
   var MIN_REASON = 40;
   var MAX_REASON = 600;
   var MAX_PIN_FAILS = 5;
@@ -332,47 +360,26 @@ var RK = (function () {
       });
   }
 
-  /** Las 3 personas más nominadas por pilar. Si hay empate en el 3er lugar, pasan todas las empatadas. */
-  function computeFinalists(nomBallots, people) {
+  /** Ganador por pilar: quien tiene más votos. Si hay empate en el primer lugar, el pin es compartido. */
+  function computeWinners(ballots, people) {
     var idx = peopleIndex(people);
     var out = {};
     PILLARS.forEach(function (pid) {
-      var t = tally(nomBallots, pid, idx).filter(function (x) { return idx[x.id] && idx[x.id].active; });
-      if (!t.length) { out[pid] = []; return; }
-      var cut = t[Math.min(2, t.length - 1)].votes;
-      out[pid] = t.filter(function (x) { return x.votes >= cut; }).map(function (x) { return x.id; });
+      var t = tally(ballots, pid, idx).filter(function (x) { return idx[x.id] && idx[x.id].active; });
+      var top = t.length ? t.filter(function (x) { return x.votes === t[0].votes; }) : [];
+      out[pid] = { winners: top.map(function (x) { return x.id; }), votes: top.length ? top[0].votes : 0 };
     });
     return out;
   }
 
-  /** Ganador por pilar: más votos finales; empate, más votos en nominación; si sigue, pin compartido. */
-  function computeWinners(finBallots, nomBallots, finalists, people) {
-    var idx = peopleIndex(people);
-    var out = {};
-    PILLARS.forEach(function (pid) {
-      var nom = {};
-      tally(nomBallots, pid, idx).forEach(function (x) { nom[x.id] = x.votes; });
-      var fin = {};
-      tally(finBallots, pid, idx).forEach(function (x) { fin[x.id] = x.votes; });
-      var rank = (finalists[pid] || []).map(function (id) {
-        return { id: id, final: fin[id] || 0, nom: nom[id] || 0 };
-      }).sort(function (a, b) { return (b.final - a.final) || (b.nom - a.nom); });
-      var top = rank.length ? rank.filter(function (r) {
-        return r.final === rank[0].final && r.nom === rank[0].nom;
-      }) : [];
-      out[pid] = { winners: top.map(function (r) { return r.id; }), votes: top.length ? top[0].final : 0, rank: rank };
-    });
-    return out;
-  }
-
-  function reasonsFor(nomBallots, pillar, id) {
-    return nomBallots.filter(function (b) { return b.pillar === pillar && b.nominee === id && b.reason; })
+  function reasonsFor(ballots, pillar, id) {
+    return ballots.filter(function (b) { return b.pillar === pillar && b.nominee === id && b.reason; })
       .map(function (b) { return b.reason; });
   }
 
-  function participationMap(rows, stage) {
+  function participationMap(rows) {
     var m = {};
-    rows.forEach(function (r) { if (r.stage === stage) m[r.person] = r.ts; });
+    rows.forEach(function (r) { if (r.stage === 'vot') m[r.person] = r.ts; });
     return m;
   }
 
@@ -393,102 +400,60 @@ var RK = (function () {
     var people = store.getPeople();
     var idx = peopleIndex(people);
     var active = activePeople(people);
-    var part = cfg.cycleId ? store.getParticipation(cfg.cycleId) : [];
-    var nomMap = participationMap(part, 'nom');
-    var finMap = participationMap(part, 'fin');
+    var voted = participationMap(cfg.cycleId ? store.getParticipation(cfg.cycleId) : []);
     var st = cfg.stage || 'idle';
     var state = {
       serverNow: now,
       people: people.map(function (p) { return { id: p.id, name: p.name, area: p.area, note: p.note, active: p.active }; }),
-      cycle: { month: cfg.month || '', stage: st, nomDeadline: cfg.nomDeadline || null, finDeadline: cfg.finDeadline || null },
+      cycle: { month: cfg.month || '', stage: st, deadline: cfg.deadline || null },
       activeCount: active.length,
-      counts: {
-        nom: active.filter(function (p) { return nomMap[p.id]; }).length,
-        fin: active.filter(function (p) { return finMap[p.id]; }).length
-      },
+      // Quién ya votó (nunca por quién): se muestra con un ✓ junto a su nombre
+      votedIds: st === 'votacion' ? active.filter(function (p) { return voted[p.id]; }).map(function (p) { return p.id; }) : [],
+      votedCount: active.filter(function (p) { return voted[p.id]; }).length,
       me: null,
-      finalists: null,
       winners: null,
       history: store.getHistory()
     };
-    if (personId && idx[personId]) {
-      state.me = { id: personId, votedNom: !!nomMap[personId], votedFin: !!finMap[personId] };
-    }
-    if (st === 'finalistas' || st === 'cerrado' || st === 'revelado') {
-      var nomB = store.getBallots('nom', cfg.cycleId);
-      var fs = cfg.finalists || {};
-      state.finalists = {};
+    if (personId && idx[personId]) state.me = { id: personId, voted: !!voted[personId] };
+    if (st === 'revelado' && cfg.winners) {
+      var ballots = store.getBallots('nom', cfg.cycleId);
+      state.winners = {};
       PILLARS.forEach(function (pid) {
-        state.finalists[pid] = (fs[pid] || []).map(function (id) {
-          var rs = reasonsFor(nomB, pid, id);
-          return { id: id, excerpt: rs.length ? rs[0] : '' };
-        });
+        var w = cfg.winners[pid] || { winners: [], votes: 0 };
+        var reasons = [];
+        w.winners.forEach(function (id) { reasons = reasons.concat(reasonsFor(ballots, pid, id)); });
+        state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons };
       });
-      if (st === 'revelado' && cfg.winners) {
-        state.winners = {};
-        PILLARS.forEach(function (pid) {
-          var w = cfg.winners[pid] || { winners: [], votes: 0 };
-          var reasons = [];
-          w.winners.forEach(function (id) { reasons = reasons.concat(reasonsFor(nomB, pid, id)); });
-          state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons };
-        });
-      }
     }
     return state;
   }
 
   /* ---------- Votar ---------- */
-  function nominate(store, personId, noms, now) {
+  function submitVote(store, personId, noms, now) {
     var cfg = store.getConfig();
     var people = store.getPeople();
     var idx = peopleIndex(people);
     var me = idx[personId];
     if (!me || !me.active) fail('No encontramos tu nombre en el equipo activo.');
-    requireStage(cfg, 'nominacion');
-    if (now > cfg.nomDeadline) fail('El plazo de nominación ya terminó.');
-    var part = store.getParticipation(cfg.cycleId);
-    if (participationMap(part, 'nom')[personId]) fail('Ya enviaste tus nominaciones este mes.');
-    if (!noms || typeof noms !== 'object') fail('Faltan tus nominaciones.');
+    requireStage(cfg, 'votacion');
+    if (now > cfg.deadline) fail('El plazo de la votación ya terminó.');
+    if (participationMap(store.getParticipation(cfg.cycleId))[personId]) fail('Ya enviaste tu voto este mes.');
+    if (!noms || typeof noms !== 'object') fail('Faltan tus votos.');
     var rows = [];
     PILLARS.forEach(function (pid) {
       var n = noms[pid];
-      if (!n) fail('Falta tu nominación en ' + PILLAR_NAMES[pid] + '.');
+      if (!n) fail('Falta tu voto en ' + PILLAR_NAMES[pid] + '.');
       if (n.skip) { rows.push({ pillar: pid, nominee: '', reason: '' }); return; }
       var target = idx[n.nominee];
       if (!target || !target.active) fail('La persona elegida en ' + PILLAR_NAMES[pid] + ' no está disponible.');
-      if (n.nominee === personId) fail('No puedes nominarte a ti mismo.');
+      if (n.nominee === personId) fail('No puedes votar por ti.');
       var reason = String(n.reason || '').replace(/\s+/g, ' ').trim();
       if (reason.length < MIN_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' necesita al menos ' + MIN_REASON + ' caracteres.');
       if (reason.length > MAX_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' supera los ' + MAX_REASON + ' caracteres.');
       rows.push({ pillar: pid, nominee: n.nominee, reason: reason });
     });
     store.addBallots('nom', cfg.cycleId, rows);
-    store.addParticipation(cfg.cycleId, 'nom', personId, now);
-    return publicState(store, personId, now);
-  }
-
-  function vote(store, personId, votes, now) {
-    var cfg = store.getConfig();
-    var people = store.getPeople();
-    var idx = peopleIndex(people);
-    var me = idx[personId];
-    if (!me || !me.active) fail('No encontramos tu nombre en el equipo activo.');
-    requireStage(cfg, 'finalistas');
-    if (now > cfg.finDeadline) fail('El plazo de la votación final ya terminó.');
-    var part = store.getParticipation(cfg.cycleId);
-    if (participationMap(part, 'fin')[personId]) fail('Ya enviaste tu voto final.');
-    var rows = [];
-    PILLARS.forEach(function (pid) {
-      var eligible = (cfg.finalists[pid] || []).filter(function (id) { return id !== personId; });
-      var v = votes ? votes[pid] : null;
-      if (!eligible.length) { rows.push({ pillar: pid, nominee: '' }); return; }
-      if (!v) fail('Falta tu voto en ' + PILLAR_NAMES[pid] + '.');
-      if (v === personId) fail('No puedes votar por ti.');
-      if (eligible.indexOf(v) < 0) fail('Esa persona no es finalista en ' + PILLAR_NAMES[pid] + '.');
-      rows.push({ pillar: pid, nominee: v });
-    });
-    store.addBallots('fin', cfg.cycleId, rows);
-    store.addParticipation(cfg.cycleId, 'fin', personId, now);
+    store.addParticipation(cfg.cycleId, 'vot', personId, now);
     return publicState(store, personId, now);
   }
 
@@ -498,38 +463,25 @@ var RK = (function () {
     var people = store.getPeople();
     var idx = peopleIndex(people);
     var st = cfg.stage || 'idle';
-    var part = cfg.cycleId ? store.getParticipation(cfg.cycleId) : [];
-    var nomMap = participationMap(part, 'nom');
-    var finMap = participationMap(part, 'fin');
+    var voted = participationMap(cfg.cycleId ? store.getParticipation(cfg.cycleId) : []);
     var out = {
       serverNow: now,
-      cycle: { month: cfg.month || '', stage: st, nomDeadline: cfg.nomDeadline || null, finDeadline: cfg.finDeadline || null },
-      participation: activePeople(people).map(function (p) {
-        return { id: p.id, nom: nomMap[p.id] || null, fin: finMap[p.id] || null };
-      }),
-      nomTally: null, finTally: null, preview: null, finalists: cfg.finalists || null, winners: null
+      cycle: { month: cfg.month || '', stage: st, deadline: cfg.deadline || null },
+      participation: activePeople(people).map(function (p) { return { id: p.id, ts: voted[p.id] || null }; }),
+      tally: null, leaders: null, winners: null
     };
     if (st !== 'idle' && cfg.cycleId) {
-      var nomB = store.getBallots('nom', cfg.cycleId);
-      out.nomTally = {};
+      var ballots = store.getBallots('nom', cfg.cycleId);
+      out.tally = {};
       PILLARS.forEach(function (pid) {
-        out.nomTally[pid] = {
-          rows: tally(nomB, pid, idx),
-          skips: nomB.filter(function (b) { return b.pillar === pid && !b.nominee; }).length
+        out.tally[pid] = {
+          rows: tally(ballots, pid, idx),
+          skips: ballots.filter(function (b) { return b.pillar === pid && !b.nominee; }).length
         };
       });
-      if (st === 'nominacion') out.preview = computeFinalists(nomB, people);
-      if (st !== 'nominacion') {
-        var finB = store.getBallots('fin', cfg.cycleId);
-        out.finTally = {};
-        PILLARS.forEach(function (pid) {
-          var t = tally(finB, pid, idx);
-          var m = {};
-          t.forEach(function (x) { m[x.id] = x.votes; });
-          out.finTally[pid] = (cfg.finalists[pid] || []).map(function (id) { return { id: id, votes: m[id] || 0 }; })
-            .sort(function (a, b) { return b.votes - a.votes; });
-        });
-      }
+      var lead = computeWinners(ballots, people);
+      out.leaders = {};
+      PILLARS.forEach(function (pid) { out.leaders[pid] = lead[pid].winners; });
       if (cfg.winners) {
         out.winners = {};
         PILLARS.forEach(function (pid) { out.winners[pid] = cfg.winners[pid].winners; });
@@ -545,24 +497,15 @@ var RK = (function () {
     if (!month || month.length > 40) fail('Elige el mes que se evalúa.');
     var ts = validDeadline(deadline, now);
     store.setConfig({
-      cycleId: 'c' + now + '-' + Math.random().toString(36).slice(2, 8), month: month, stage: 'nominacion',
-      nomDeadline: ts, finDeadline: null, finalists: null, winners: null
+      cycleId: 'c' + now + '-' + Math.random().toString(36).slice(2, 8), month: month,
+      stage: 'votacion', deadline: ts, winners: null
     });
   }
 
-  function adminCloseNom(store, deadline, now) {
+  function adminClose(store) {
     var cfg = store.getConfig();
-    requireStage(cfg, 'nominacion');
-    var ts = validDeadline(deadline, now);
-    var finalists = computeFinalists(store.getBallots('nom', cfg.cycleId), store.getPeople());
-    store.setConfig({ stage: 'finalistas', finalists: finalists, finDeadline: ts });
-  }
-
-  function adminCloseFinal(store, now) {
-    var cfg = store.getConfig();
-    requireStage(cfg, 'finalistas');
-    var winners = computeWinners(store.getBallots('fin', cfg.cycleId), store.getBallots('nom', cfg.cycleId), cfg.finalists, store.getPeople());
-    store.setConfig({ stage: 'cerrado', winners: winners });
+    requireStage(cfg, 'votacion');
+    store.setConfig({ stage: 'cerrado', winners: computeWinners(store.getBallots('nom', cfg.cycleId), store.getPeople()) });
   }
 
   function adminReveal(store) {
@@ -572,10 +515,8 @@ var RK = (function () {
 
   function adminExtend(store, deadline, now) {
     var cfg = store.getConfig();
-    var ts = validDeadline(deadline, now);
-    if (cfg.stage === 'nominacion') store.setConfig({ nomDeadline: ts });
-    else if (cfg.stage === 'finalistas') store.setConfig({ finDeadline: ts });
-    else fail('Solo puedes cambiar la fecha límite con una votación abierta.');
+    requireStage(cfg, 'votacion');
+    store.setConfig({ deadline: validDeadline(deadline, now) });
   }
 
   function adminArchive(store) {
@@ -584,7 +525,7 @@ var RK = (function () {
     var w = {};
     PILLARS.forEach(function (pid) { w[pid] = (cfg.winners[pid] || { winners: [] }).winners; });
     store.addHistory({ month: cfg.month, winners: w });
-    store.setConfig({ cycleId: '', month: '', stage: 'idle', nomDeadline: null, finDeadline: null, finalists: null, winners: null });
+    store.setConfig({ cycleId: '', month: '', stage: 'idle', deadline: null, winners: null });
   }
 
   /* ---------- Punto de entrada único ---------- */
@@ -597,8 +538,7 @@ var RK = (function () {
       };
       switch (name) {
         case 'state': data = publicState(store, args[0], now); break;
-        case 'nominate': data = nominate(store, args[0], args[1], now); break;
-        case 'vote': data = vote(store, args[0], args[1], now); break;
+        case 'vote': data = submitVote(store, args[0], args[1], now); break;
         case 'adminLogin':
           if (auth.fails() >= MAX_PIN_FAILS) fail('Demasiados intentos. Espera 10 minutos.');
           if (String(args[0]) !== String(store.getAdminPin())) { auth.addFail(); fail('PIN incorrecto. Intenta de nuevo.'); }
@@ -607,8 +547,7 @@ var RK = (function () {
           break;
         case 'admin': admin(); data = adminState(store, now); break;
         case 'adminOpen': admin(); adminOpen(store, args[1], args[2], now); data = adminState(store, now); break;
-        case 'adminCloseNom': admin(); adminCloseNom(store, args[1], now); data = adminState(store, now); break;
-        case 'adminCloseFinal': admin(); adminCloseFinal(store, now); data = adminState(store, now); break;
+        case 'adminClose': admin(); adminClose(store); data = adminState(store, now); break;
         case 'adminReveal': admin(); adminReveal(store); data = adminState(store, now); break;
         case 'adminExtend': admin(); adminExtend(store, args[1], now); data = adminState(store, now); break;
         case 'adminArchive': admin(); adminArchive(store); data = adminState(store, now); break;
@@ -622,7 +561,7 @@ var RK = (function () {
 
   return {
     PILLARS: PILLARS, STAGES: STAGES, MIN_REASON: MIN_REASON,
-    tally: tally, computeFinalists: computeFinalists, computeWinners: computeWinners,
+    tally: tally, computeWinners: computeWinners,
     publicState: publicState, adminState: adminState, handle: handle
   };
 })();
@@ -645,12 +584,9 @@ var RK = (function () {
     ['dm',{colaboracion:'rm',responsabilidad:'vc',respeto:'mc',comunicacion:'bb'}]];
   var SCEN={
     idle:function(){},
-    nom:function(){h('adminOpen',tk(),'Noviembre 2026',Date.now()+3*DAY+5*3600e3);NOM.forEach(function(r){h('nominate',r[0],noms(r[1]))})},
+    nom:function(){h('adminOpen',tk(),'Noviembre 2026',Date.now()+3*DAY+5*3600e3);NOM.forEach(function(r){h('vote',r[0],noms(r[1]))})},
     'nom-expired':function(){SCEN.nom();clock=4*DAY},
-    fin:function(){SCEN.nom();h('adminCloseNom',tk(),Date.now()+2*DAY);['bb','mb','na','mr'].forEach(function(v){var f=h('state',v).finalists;var o={};P.forEach(function(p){var c=f[p].filter(function(x){return x.id!==v});if(c.length)o[p]=c[0].id});h('vote',v,o)})},
-    cerrado:function(){SCEN.fin(); 
-      STORE.getPeople().filter(function(x){return x.active}).forEach(function(x){var s=h('state',x.id);if(s.me.votedFin)return;var o={};P.forEach(function(p){var c=s.finalists[p].filter(function(f){return f.id!==x.id});if(c.length)o[p]=c[c.length>1&&x.id.charCodeAt(1)%2?1:0].id});h('vote',x.id,o)});
-      h('adminCloseFinal',tk())},
+    cerrado:function(){SCEN.nom();h('adminClose',tk())},
     revelado:function(){SCEN.cerrado();h('adminReveal',tk())},
     historia:function(){SCEN.revelado();h('adminArchive',tk())}
   };
@@ -701,7 +637,7 @@ var AVATAR_SRC = {
 </script>
 
   <script>
-/* Rekonoce · cliente. Toda la data viene del servidor por api(); aquí solo hay vista y navegación. */
+/* ReKonoce · cliente. Toda la data viene del servidor por api(); aquí solo hay vista y navegación. */
 var PILLARS=[
  {id:'colaboracion',name:'Colaboración',symbol:'La hormiga',art:'la hormiga',tag:'Tu colaboración nos hace imparables.',
   desc:'La hormiga sabe que sola no llega lejos, pero en equipo logra lo imposible. Al compartir conocimientos y poner al grupo por sobre lo individual se multiplica la fuerza del equipo.',
@@ -796,25 +732,40 @@ function fmtDate(ts){if(!ts)return '';var d=new Date(ts);return d.toLocaleDateSt
 function cdParts(ts){var s=Math.max(0,Math.floor((ts-now())/1000));var d=Math.floor(s/86400);s-=d*86400;var h=Math.floor(s/3600);s-=h*3600;var m=Math.floor(s/60);s-=m*60;return [d,h,m,s]}
 function z(n){return String(n).padStart(2,'0')}
 function stage(c){c=c||(G&&G.cycle);return c?c.stage:'idle'}
-function deadlineOf(c){return c.stage==='nominacion'?c.nomDeadline:c.stage==='finalistas'?c.finDeadline:null}
+function deadlineOf(c){return c.stage==='votacion'?c.deadline:null}
 function expired(c){var d=deadlineOf(c||G.cycle);return !!d&&now()>d}
 function countdown(c,label){var ts=deadlineOf(c);if(!ts)return '';var over=now()>ts;var p=cdParts(ts);
   return '<div class="cd '+(over?'over':'')+'" data-cd="'+ts+'"><div class="lbl"><span>'+(over?'El plazo terminó':label)+'</span><b>'+fmtDate(ts)+'</b></div><div class="digits">'+
   [[p[0],'días'],[z(p[1]),'horas'],[z(p[2]),'min'],[z(p[3]),'seg']].map(function(x){return '<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'}).join('')+'</div></div>'}
 
+/* Participación: «12 de 19 ya votaron», barra y caras de quienes ya votaron */
+function partBlock(){var n=G.votedCount,a=G.activeCount,pct=Math.round(n/Math.max(1,a)*100);
+ var ids=G.votedIds||[];var faces=ids.slice(0,7).map(function(id){return av(P(id),30)}).join('')+(ids.length>7?'<span class="more">+'+(ids.length-7)+'</span>':'');
+ return '<div class="part"><div class="part-top"><span><b>'+n+'</b> de '+a+'</span><em>'+pct+'%</em></div>'+
+  '<p class="small">'+(n===a?'¡Todo el equipo ya votó!':n===0?'Nadie ha votado todavía. ¡Sé la primera persona!':(a-n)+(a-n===1?' persona falta por votar':' personas faltan por votar'))+'</p>'+
+  '<div class="bar" aria-hidden="true"><i style="width:'+pct+'%"></i></div>'+(faces?'<div class="faces" aria-hidden="true">'+faces+'</div>':'')+'</div>'}
+function voteHero(){var c=G.cycle,st=c.stage,m=monthWord();
+ if(st==='votacion')return '<section class="hero-card" aria-label="Votación abierta"><div class="topline"><span class="kicker">Votación de '+esc(m.toLowerCase())+'</span><span class="live"><i></i>Abierta</span></div>'+countdown(c,'Cierra en')+partBlock()+'</section>';
+ if(st==='cerrado')return '<section class="hero-card"><span class="kicker">Votación de '+esc(m.toLowerCase())+'</span><b class="h2">La votación cerró</b><p class="small">Votaron '+G.votedCount+' de '+G.activeCount+'. Los Kiber Champions se revelan en la reunión de equipo.</p></section>';
+ if(st==='revelado')return '<section class="hero-card"><span class="kicker">'+esc(G.cycle.month)+'</span><b class="h2">¡Ya tenemos Kiber Champions!</b><p class="small">Elige tu nombre para ver la revelación.</p></section>';
+ return '<section class="hero-card"><span class="kicker">Kiber Champions</span><b class="h2">No hay una votación abierta</b><p class="small">Cuando se abra, aquí verás cuánto tiempo queda y cuántos han votado.</p></section>'}
+
 /* ---------- Pantallas ---------- */
 var V={};
-V.loading=function(){return S.fatal?'<div class="center-screen"><span class="wm">KIBERNUM</span><b class="h2">No pudimos cargar Rekonoce</b><p class="lead">'+esc(S.fatal)+'</p><button class="btn" data-a="retry" style="max-width:260px">Intentar de nuevo</button></div>':
-  '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><p class="lead">Cargando Rekonoce…</p></div>'};
+V.loading=function(){return S.fatal?'<div class="center-screen"><span class="wm">KIBERNUM</span><b class="h2">No pudimos cargar ReKonoce</b><p class="lead">'+esc(S.fatal)+'</p><button class="btn" data-a="retry" style="max-width:260px">Intentar de nuevo</button></div>':
+  '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><p class="lead">Cargando ReKonoce…</p></div>'};
 
-V.login=function(){var q=S.q.toLowerCase();
+V.login=function(){var q=S.q.toLowerCase();var voted={};(G.votedIds||[]).forEach(function(id){voted[id]=1});
  var groups=Object.keys(AREAS).map(function(a){var ps=people().filter(function(x){return x.area===a&&x.name.toLowerCase().indexOf(q)>=0});if(!ps.length)return '';
-  return '<div class="group"><div class="gh">'+AREAS[a]+'<span>'+people().filter(function(x){return x.area===a}).length+' personas</span></div>'+ps.map(function(x){return '<button class="person" data-a="who" data-id="'+x.id+'" '+(x.active?'':'disabled')+'>'+av(x)+'<span class="t"><b>'+esc(x.name)+'</b><small>'+(x.active?esc(x.note||AREAS[x.area]):esc(x.note||'No participa')+' · no participa este mes')+'</small></span>'+(x.active?ICON.chev:'')+'</button>'}).join('')+'</div>'}).join('');
+  var all=people().filter(function(x){return x.area===a&&x.active});
+  return '<div class="group"><div class="gh">'+AREAS[a]+'<span>'+(stage()==='votacion'?all.filter(function(x){return voted[x.id]}).length+' de '+all.length+' votaron':people().filter(function(x){return x.area===a}).length+' personas')+'</span></div>'+
+   ps.map(function(x){var v=voted[x.id];return '<button class="person'+(v?' voted':'')+'" data-a="who" data-id="'+x.id+'" '+(x.active?'':'disabled')+'>'+av(x)+'<span class="t"><b>'+esc(x.name)+'</b><small>'+(x.active?esc(x.note||AREAS[x.area]):esc(x.note||'No participa')+' · no participa este mes')+'</small></span>'+
+    (v?'<span class="tick" aria-label="Ya votó">'+ICON.check+'</span>':x.active?ICON.chev:'')+'</button>'}).join('')+'</div>'}).join('');
  return '<div class="pad" style="background:var(--warm);padding-top:18px;min-height:100%">'+flash()+
   '<div class="topline"><span class="kicker">Kiber Champions</span><span class="wm">KIBERNUM</span></div>'+
-  '<div class="hgroup" style="gap:12px"><span class="ray"></span><h1 class="h1" style="font-size:40px;line-height:1.05">Rekonoce</h1><p class="lead">Reconocer para crecer. Cada mes elegimos juntos a los Kiber Champions de cada pilar.</p></div>'+
-  '<div class="pins2">'+PILLARS.map(function(p){return '<div>'+medal(p.id,46)+'<small>'+p.name+'</small></div>'}).join('')+'</div>'+
-  '<div class="card" style="background:var(--bg);gap:12px"><b class="h2" style="font-size:15px">¿Quién eres?</b>'+
+  '<div class="hgroup" style="gap:12px"><span class="ray"></span><h1 class="h1" style="font-size:40px;line-height:1.05">ReKonoce</h1><p class="lead">Reconocer para crecer. Cada mes elegimos juntos a los Kiber Champions de cada pilar.</p></div>'+
+  voteHero()+
+  '<div class="card" style="background:var(--bg);gap:12px"><div class="topline"><b class="h2" style="font-size:15px">¿Quién eres?</b>'+(stage()==='votacion'?'<span class="small legend"><span class="tick sm">'+ICON.check+'</span>ya votó</span>':'')+'</div>'+
   '<label class="search">'+ICON.search+'<input id="q" type="search" placeholder="Busca tu nombre" value="'+esc(S.q)+'" autocomplete="off" aria-label="Busca tu nombre"></label>'+
   '<div style="display:grid;gap:12px">'+(groups||'<p class="small">No encontramos ese nombre.</p>')+'</div></div>'+
   '<button class="link" data-a="toPin">'+ICON.lock+'Acceso administrador</button></div>'};
@@ -822,63 +773,54 @@ V.login=function(){var q=S.q.toLowerCase();
 V.disclaimer=function(){var x=P(S.pending);return appbar()+'<div class="pad" style="padding-top:4px">'+
   '<div class="shield">'+ICON.shield+'</div>'+
   head('Antes de votar','Hola, '+esc(first(x.name))+'. Tu voto es anónimo.','')+
-  '<div class="list">'+[['Nadie sabe por quién votaste','Tus nominaciones y motivos se guardan sin tu nombre. En la app nadie, ni el administrador, puede ver por quién votaste.'],
-   ['Tu nombre solo marca que participaste','Lo usamos únicamente para saber si todo el equipo ya votó y recordarle a quien falte.'],
-   ['Tus motivos se leen sin firma','Si la persona que nominaste gana, verá lo que escribiste, pero no quién lo escribió.']]
+  '<div class="list">'+[['Nadie sabe por quién votaste','Tus votos y motivos se guardan sin tu nombre. En la app nadie, ni el administrador, puede ver por quién votaste.'],
+   ['Tu nombre solo marca que participaste','Lo usamos únicamente para saber si todo el equipo ya votó. Junto a tu nombre aparecerá un ✓, nada más.'],
+   ['Tus motivos se leen sin firma','Si la persona que elegiste gana, verá lo que escribiste, pero no quién lo escribió.']]
   .map(function(r,i){return '<div class="prow" style="align-items:flex-start"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="t"><b>'+r[0]+'</b><span>'+r[1]+'</span></span></div>'}).join('')+'</div>'+
   '<p class="small">¿No eres '+esc(x.name)+'? Vuelve y elige tu nombre.</p></div>'+
   '<div class="sticky"><button class="btn" data-a="accept">Entendido, continuar</button></div>'};
 
-function homeTop(){var me=P(S.who);return '<div class="topline"><span class="wm">KIBERNUM</span><button data-a="switch" aria-label="Cambiar de persona" style="display:flex;align-items:center;gap:8px;min-height:44px"><span class="small">'+esc(first(me.name))+'</span>'+av(me,34)+'</button></div>'+flash()}
-function kpiPart(n){var a=G.activeCount;return '<div class="kpi"><span><b class="g">'+n+'</b><em>de '+a+' ya votaron</em></span><span><b>'+(a-n)+'</b><em>'+((a-n)===1?'persona falta':'personas faltan')+'</em></span></div>'}
+function homeTop(){var me=P(S.who);return '<div class="topline"><button class="back" data-a="switch" aria-label="Volver a elegir quién eres">'+ICON.back+'Volver</button><span style="display:flex;align-items:center;gap:8px"><span class="small">'+esc(first(me.name))+'</span>'+av(me,34)+'</span></div>'+flash()}
 function whyCard(){return '<button class="card" data-a="tab" data-s="pillars"><span class="ray"></span><b class="h2" style="font-size:15px">¿Por qué nos reconocemos?</b><span class="small">Los cuatro pilares, qué significa cada pin y qué conductas reconocemos.</span></button>'}
 
 V.home=function(){var st=stage(),me=P(S.who),m=monthWord(),c=G.cycle;
- if(st==='nominacion'){
-  if(G.me.votedNom)return '<div class="pad">'+homeTop()+head(m+' · Nominación','Gracias, '+esc(first(me.name))+'. Ya enviaste tus nominaciones.','Los finalistas se anuncian cuando cierre la nominación.')+countdown(c,'La nominación cierra en')+kpiPart(G.counts.nom)+whyCard()+'</div>';
+ if(st==='votacion'){
+  if(G.me.voted)return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'Gracias, '+esc(first(me.name))+'. Tu voto quedó registrado.','Los Kiber Champions se revelan cuando cierre la votación.')+
+   '<section class="hero-card">'+countdown(c,'Cierra en')+partBlock()+'</section>'+whyCard()+'</div>';
   var done=PILLARS.filter(function(p){return S.draft[p.id]}).length,closed=expired();
-  return '<div class="pad">'+homeTop()+head(m+' · Nominación','¿A quién reconoces en '+m.toLowerCase()+'?','Elige a una persona por pilar y cuenta por qué. Al final envías todo junto.')+
-   countdown(c,'La nominación cierra en')+
-   (closed?'<div class="notice"><b>El plazo terminó.</b><span>Ya no se reciben nominaciones. Espera el anuncio de finalistas.</span></div>':'')+
-   '<div class="list">'+PILLARS.map(function(p){var n=S.draft[p.id];var sub=n?(n.skip?'Sin nominación este mes':'Nominaste a '+esc(P(n.nominee).name)):p.tag;
+  return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'¿A quién reconoces en '+m.toLowerCase()+'?','Elige a una persona por pilar y cuenta por qué. Al final envías todo junto.')+
+   '<section class="hero-card">'+countdown(c,'Cierra en')+partBlock()+'</section>'+
+   (closed?'<div class="notice"><b>El plazo terminó.</b><span>Ya no se reciben votos. Pronto revelamos a los Kiber Champions.</span></div>':'')+
+   '<div class="list">'+PILLARS.map(function(p){var n=S.draft[p.id];var sub=n?(n.skip?'Sin voto este mes':'Elegiste a '+esc(P(n.nominee).name)):p.tag;
     return '<button class="prow" data-a="nominate" data-p="'+p.id+'" '+(closed?'disabled':'')+'>'+medal(p.id,48,n?'done':'')+'<span class="t"><b>'+p.name+'</b><span>'+sub+'</span></span>'+(n?'<span class="st">'+(n.skip?'Omitido':'Listo')+'</span>':'<span class="st pend">Pendiente</span>')+'</button>'}).join('')+'</div>'+
    '<button class="btn" data-a="review" '+(done<4||closed?'disabled':'')+'>'+(done<4?'Completa los 4 pilares ('+done+'/4)':'Revisar y enviar')+'</button>'+whyCard()+'</div>'}
- if(st==='finalistas'){
-  if(G.me.votedFin)return '<div class="pad">'+homeTop()+head(m+' · Finalistas','Listo, '+esc(first(me.name))+'. Tu voto final quedó registrado.','Los ganadores se revelan cuando cierre la votación.')+countdown(c,'La votación final cierra en')+kpiPart(G.counts.fin)+'</div>';
-  var need=PILLARS.filter(function(p){return eligible(p.id).length});var fd=need.filter(function(p){return S.fdraft[p.id]}).length,cl=expired();
-  return '<div class="pad">'+homeTop()+head(m+' · Finalistas','Ya tenemos finalistas. Elige al Champion de cada pilar.','Cada pilar tiene a sus personas más nominadas.')+
-   countdown(c,'La votación final cierra en')+
-   (cl?'<div class="notice"><b>El plazo terminó.</b><span>Ya no se reciben votos.</span></div>':'')+
-   '<div class="list">'+PILLARS.map(function(p){var f=S.fdraft[p.id];var el=eligible(p.id).length;return '<button class="prow" data-a="final" data-p="'+p.id+'" '+(cl||!el?'disabled':'')+'>'+medal(p.id,48,f?'done':'')+'<span class="t"><b>'+p.name+'</b><span>'+(f?'Votaste por '+esc(P(f).name):el?(G.finalists[p.id].length+' finalistas'):'No hay finalistas por quien votar')+'</span></span>'+(f?'<span class="st">Listo</span>':el?'<span class="st pend">Pendiente</span>':'')+'</button>'}).join('')+'</div>'+
-   '<button class="btn" data-a="fsend" '+(fd<need.length||cl?'disabled':'')+'>'+(fd<need.length?'Vota en todos los pilares ('+fd+'/'+need.length+')':'Enviar mi voto final')+'</button></div>'}
- if(st==='cerrado')return '<div class="pad">'+homeTop()+head(m+' · Votación cerrada','Ya tenemos a los Kiber Champions de '+m.toLowerCase()+'.','Se revelan en la reunión de equipo. Mantente atento.')+
+ if(st==='cerrado')return '<div class="pad">'+homeTop()+head('Votación de '+m.toLowerCase(),'Ya tenemos a los Kiber Champions de '+m.toLowerCase()+'.','Se revelan en la reunión de equipo. Mantente atento.')+
    '<div class="pins2">'+PILLARS.map(function(p){return '<div>'+medal(p.id,46)+'<small>'+p.name+'</small></div>'}).join('')+'</div>'+
    '<div class="notice"><b>Resultados guardados.</b><span>Nadie del equipo los conoce todavía.</span></div></div>';
  if(st==='revelado')return '<div class="pad">'+homeTop()+head(m+' · Ganadores','Los Kiber Champions de '+m.toLowerCase()+' ya están aquí.','Mira la revelación pilar por pilar, con lo que el equipo escribió.')+
    '<div class="pins2">'+PILLARS.map(function(p){return '<div>'+medal(p.id,46,'done')+'<small>'+p.name+'</small></div>'}).join('')+'</div>'+
    '<button class="btn" data-a="startReveal">Ver la revelación</button></div>';
- return '<div class="pad">'+homeTop()+head('Sin votación abierta','Pronto abrimos la nominación del próximo mes.','Te avisaremos cuando puedas nominar.')+
+ return '<div class="pad">'+homeTop()+head('Sin votación abierta','Pronto abrimos la votación del próximo mes.','Te avisaremos cuando puedas votar.')+
    (G.history.length?'<button class="btn sec" data-a="tab" data-s="winners">Ver los últimos Champions</button>':'')+whyCard()+'</div>';
 };
-function eligible(pid){return (G.finalists&&G.finalists[pid]||[]).filter(function(f){return f.id!==S.who})}
 
 V.pillars=function(){return (S.stack.length>1?appbar():'')+'<div class="pad">'+
   head('Kiber Champions · Los pilares','Por qué nos reconocemos','Porque cuando reconocemos lo mejor de otros, también sacamos lo mejor de nosotros mismos.')+
   '<p class="quote">El reconocimiento no se trata de premios, sino de construir confianza.</p>'+
   '<div class="list">'+PILLARS.map(function(p,i){return '<button class="prow" data-a="pillar" data-p="'+p.id+'"><span class="num">0'+(i+1)+'</span><span class="t"><b>'+p.name+'</b><span>'+p.symbol+'</span></span>'+medal(p.id,44)+'</button>'}).join('')+'</div>'+
   '<div class="card"><span class="ray"></span><b class="h2" style="font-size:15px">Cómo funciona cada mes</b><div style="display:grid;gap:10px;margin-top:4px">'+
-  [['Nominación','Eliges a una persona por pilar, con un motivo concreto.'],['Finalistas','Votas entre las 3 personas más nominadas de cada pilar.'],['Ganadores','Los revelamos en la reunión y entregamos el pin.']].map(function(x,i){return '<div style="display:flex;gap:12px"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="small"><b style="color:var(--ink)">'+x[0]+'.</b> '+x[1]+'</span></div>'}).join('')+'</div></div></div>'};
+  [['Votas','Eliges a una persona por pilar, con un motivo concreto.'],['Cerramos','Gana quien tenga más votos en cada pilar. Si hay empate, el pin es compartido.'],['Celebramos','Revelamos a los Kiber Champions en la reunión y entregamos el pin.']].map(function(x,i){return '<div style="display:flex;gap:12px"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="small"><b style="color:var(--ink)">'+x[0]+'.</b> '+x[1]+'</span></div>'}).join('')+'</div></div></div>'};
 
-V.pillar=function(){var p=PL(S.cur);var can=G&&S.who&&stage()==='nominacion'&&G.me&&!G.me.votedNom&&!expired();return appbar(p.symbol)+'<div class="pad">'+
+V.pillar=function(){var p=PL(S.cur);var can=G&&S.who&&stage()==='votacion'&&G.me&&!G.me.voted&&!expired();return appbar(p.symbol)+'<div class="pad">'+
   '<div style="display:flex;justify-content:center;padding:4px 0">'+medal(p.id,160)+'</div>'+
   head('Pilar · '+p.symbol,p.name,'')+'<p class="h2" style="font-weight:400;font-size:18px">'+p.tag+'</p><p class="lead">'+p.desc+'</p>'+
   '<div style="display:grid;gap:8px"><span class="kicker">Lo reconocemos cuando alguien</span><div class="list">'+p.when.map(function(w,i){return '<div class="prow" style="min-height:52px"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="t"><b style="font-weight:400;font-size:14px">'+w+'</b></span></div>'}).join('')+'</div></div>'+
-  (can?'<button class="btn" data-a="nominate" data-p="'+p.id+'">'+(S.draft[p.id]?'Cambiar mi nominación':'Nominar en '+p.name)+'</button>':'')+'</div>'};
+  (can?'<button class="btn" data-a="nominate" data-p="'+p.id+'">'+(S.draft[p.id]?'Cambiar mi voto':'Votar en '+p.name)+'</button>':'')+'</div>'};
 
 V.choose=function(){var p=PL(S.cur);var sel=S.tmp.nominee;var q=S.q.toLowerCase();
  var groups=Object.keys(AREAS).map(function(a){var ps=people().filter(function(x){return x.area===a&&x.name.toLowerCase().indexOf(q)>=0});if(!ps.length)return '';
   return '<div class="group"><div class="gh">'+AREAS[a]+'<span>'+people().filter(function(x){return x.area===a}).length+' personas</span></div>'+ps.map(function(x){var me=x.id===S.who;var dis=me||!x.active;
-   return '<button class="person" role="radio" aria-checked="'+(sel===x.id)+'" '+(dis?'disabled':'')+' data-a="pick" data-id="'+x.id+'">'+av(x)+'<span class="t"><b>'+esc(x.name)+(me?' (tú)':'')+'</b><small>'+(!x.active?esc(x.note||'No participa'):me?'No puedes nominarte':esc(x.note||AREAS[x.area]))+'</small></span><span class="radio"></span></button>'}).join('')+'</div>'}).join('');
+   return '<button class="person" role="radio" aria-checked="'+(sel===x.id)+'" '+(dis?'disabled':'')+' data-a="pick" data-id="'+x.id+'">'+av(x)+'<span class="t"><b>'+esc(x.name)+(me?' (tú)':'')+'</b><small>'+(!x.active?esc(x.note||'No participa'):me?'No puedes votar por ti':esc(x.note||AREAS[x.area]))+'</small></span><span class="radio"></span></button>'}).join('')+'</div>'}).join('');
  return appbar('Paso 1 de 2')+'<div class="pad" style="padding-bottom:12px">'+
   '<div style="display:flex;gap:14px;align-items:center">'+medal(p.id,56)+'<div class="hgroup" style="gap:4px"><span class="kicker">'+p.name+'</span><p class="small" style="color:var(--ink-2)">'+p.ask+'</p></div></div>'+
   '<label class="search">'+ICON.search+'<input id="q" type="search" placeholder="Buscar por nombre" value="'+esc(S.q)+'" autocomplete="off" aria-label="Buscar por nombre"></label>'+
@@ -896,19 +838,12 @@ V.reason=function(){var p=PL(S.cur);var x=P(S.tmp.nominee);var n=reasonLen();
   '<div class="count"><span id="cnt">'+cntHtml(n)+'</span><span id="cnt2">'+n+' / '+MIN_REASON+' mín.</span></div></div>'+
   '<div style="display:grid;gap:8px"><span class="kicker">Para empezar</span><div class="starts">'+p.starts.map(function(s){return '<button data-a="start" data-t="'+esc(s)+'">'+esc(s.trim())+'…</button>'}).join('')+'</div></div>'+
   '<p class="small" style="display:flex;gap:6px;align-items:center">'+ICON.lock+'Se guarda sin tu nombre.</p></div>'+
-  '<div class="sticky"><button class="btn" id="saveR" data-a="saveReason" '+(n<MIN_REASON?'disabled':'')+'>Guardar nominación</button></div>'};
+  '<div class="sticky"><button class="btn" id="saveR" data-a="saveReason" '+(n<MIN_REASON?'disabled':'')+'>Guardar</button></div>'};
 
 V.review=function(){return appbar('Resumen')+'<div class="pad" style="padding-bottom:12px">'+
-  head('Antes de enviar','Revisa tus nominaciones','Una vez enviadas no se pueden cambiar. Así nadie puede rastrear tu voto.')+
-  '<div class="list">'+PILLARS.map(function(p){var n=S.draft[p.id];return '<div class="prow" style="align-items:flex-start">'+medal(p.id,40)+'<span class="t"><b>'+p.name+'</b><span>'+(n.skip?'Sin nominación':esc(P(n.nominee).name))+'</span>'+(n.skip?'':'<span class="quote" style="margin-top:6px;font-size:13px">«'+esc(n.reason)+'»</span>')+'</span></div>'}).join('')+'</div></div>'+
-  '<div class="sticky"><button class="btn" data-a="sendNom">Enviar mis nominaciones</button></div>'};
-
-V.final=function(){var p=PL(S.cur);var sel=S.fdraft[p.id];var fs=G.finalists[p.id]||[];
- return appbar('Finalistas')+'<div class="pad" style="padding-bottom:12px">'+
-  '<div style="display:flex;gap:14px;align-items:center">'+medal(p.id,56)+'<div class="hgroup" style="gap:4px"><span class="kicker">'+p.name+' · '+fs.length+' finalistas</span><p class="small" style="color:var(--ink-2)">Elige a una persona. Cada una aparece con un motivo anónimo que recibió.</p></div></div>'+
-  '<div style="display:grid;gap:10px" role="radiogroup" aria-label="Finalistas">'+fs.map(function(f){var x=P(f.id);var me=f.id===S.who;return '<button class="fin" role="radio" aria-checked="'+(sel===f.id)+'" data-a="fpick" data-id="'+f.id+'" '+(me?'disabled':'')+'><span class="row">'+av(x)+'<span class="t"><b>'+esc(x.name)+(me?' (tú)':'')+'</b><span class="small">'+(me?'No puedes votar por ti':AREAS[x.area])+'</span></span><span class="radio"></span></span>'+(f.excerpt?'<span class="quote">«'+esc(f.excerpt)+'»</span>':'')+'</button>'}).join('')+'</div>'+
-  '<p class="small">No mostramos cuántos votos tuvo cada finalista, para que elijas por la historia y no por la tendencia.</p></div>'+
-  '<div class="sticky"><button class="btn" data-a="fsave" '+(sel?'':'disabled')+'>Guardar voto</button></div>'};
+  head('Antes de enviar','Revisa tu voto','Una vez enviado no se puede cambiar. Así nadie puede rastrear tu voto.')+
+  '<div class="list">'+PILLARS.map(function(p){var n=S.draft[p.id];return '<div class="prow" style="align-items:flex-start">'+medal(p.id,40)+'<span class="t"><b>'+p.name+'</b><span>'+(n.skip?'Sin voto':esc(P(n.nominee).name))+'</span>'+(n.skip?'':'<span class="quote" style="margin-top:6px;font-size:13px">«'+esc(n.reason)+'»</span>')+'</span></div>'}).join('')+'</div></div>'+
+  '<div class="sticky"><button class="btn" data-a="sendNom">Enviar mi voto</button></div>'};
 
 V.reveal=function(){var i=S.reveal.i;var w=G.winners;
  if(!w)return appbar()+'<div class="pad">'+head('Ganadores','Aún no se revelan los ganadores','')+'</div>';
@@ -923,7 +858,7 @@ V.reveal=function(){var i=S.reveal.i;var w=G.winners;
   '<div class="rings"><span class="r r3"></span><span class="r"></span><span class="r r2"></span>'+medal(p.id,150)+'</div>'+
   (win.ids.length?'<div class="rv-faces rise" style="animation-delay:.8s">'+win.ids.map(function(id){return av(P(id),64)}).join('')+'</div>'+
   '<h1 class="nm" aria-label="'+esc(names)+'">'+letters+'</h1>'+
-  '<p class="small rise" style="animation-delay:1.5s">'+(win.ids.length>1?'Pin compartido · ':'')+win.votes+' '+(win.votes===1?'voto':'votos')+' en la final · '+win.reasons.length+' '+(win.reasons.length===1?'reconocimiento':'reconocimientos')+'</p>'+
+  '<p class="small rise" style="animation-delay:1.5s">'+(win.ids.length>1?'Pin compartido · ':'')+win.votes+' '+(win.votes===1?'voto':'votos')+' · '+win.reasons.length+' '+(win.reasons.length===1?'reconocimiento':'reconocimientos')+'</p>'+
   '<div class="reasons">'+win.reasons.map(function(r,k){return '<p class="quote rise" style="animation-delay:'+(1.8+k*.25).toFixed(2)+'s">«'+esc(r)+'»</p>'}).join('')+'</div>':'<p class="lead">Este pilar no tuvo votos suficientes este mes.</p>')+
   '<div class="dots rise" style="animation-delay:1.6s">'+PILLARS.map(function(_,k){return '<i class="'+(k===i?'on':'')+'"></i>'}).join('')+'</div>'+
   '<button class="btn rise" style="animation-delay:1.6s" data-a="nextReveal">'+(i===3?'Ver a los 4 Champions':'Siguiente pilar')+'</button></div>'};
@@ -947,49 +882,46 @@ V.pin=function(){return appbar()+'<div class="pad">'+head('Administrador','Ingre
   '<p class="err" role="alert">'+esc(S.pinErr)+'</p>'+
   '<div class="keypad">'+['1','2','3','4','5','6','7','8','9','','0','del'].map(function(k){return k===''?'<span></span>':'<button data-a="key" data-k="'+k+'" class="'+(k==='del'?'ghost':'')+'" aria-label="'+(k==='del'?'Borrar':k)+'">'+(k==='del'?'Borrar':k)+'</button>'}).join('')+'</div></div>'};
 
-var STAGES=[['nominacion','Nominación'],['finalistas','Finalistas'],['cerrado','Cierre'],['revelado','Ganadores']];
-function aCount(){var st=A.cycle.stage;var k=st==='finalistas'?'fin':'nom';return A.participation.filter(function(x){return x[k]}).length}
+var STAGES=[['votacion','Votación'],['cerrado','Cierre'],['revelado','Ganadores']];
+function aCount(){return A.participation.filter(function(x){return x.ts}).length}
 V.admin=function(){var c=A.cycle,st=c.stage;var idx=-1;STAGES.forEach(function(s,k){if(s[0]===st)idx=k});var n=aCount(),tot=A.participation.length;
  var step=STAGES.map(function(s,k){return '<div class="'+(k<idx?'done':k===idx?'now':'')+'"><i></i><span>'+s[1]+'</span></div>'}).join('');
  var action='';
- if(st==='idle')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Abrir la nominación del mes</b><span class="small">Eliges el mes que se evalúa y la fecha límite para nominar.</span><button class="btn" data-a="sheet" data-s="open">Abrir nominación</button></div>';
- if(st==='nominacion')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Cerrar nominación y anunciar finalistas</b><span class="small">Quedan las 3 personas más nominadas por pilar y se abre la votación final.</span><button class="btn" data-a="sheet" data-s="toFinal">Cerrar y pasar a Finalistas</button><button class="btn sec sm" data-a="sheet" data-s="extend">Cambiar fecha límite</button></div>';
- if(st==='finalistas')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Cerrar la votación final</b><span class="small">Se calculan los ganadores y quedan guardados sin mostrarse al equipo.</span><button class="btn" data-a="sheet" data-s="toClose">Cerrar votación final</button><button class="btn sec sm" data-a="sheet" data-s="extend">Cambiar fecha límite</button></div>';
+ if(st==='idle')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Abrir la votación del mes</b><span class="small">Eliges el mes que se evalúa y la fecha límite para votar. El contador aparece en la pantalla de inicio de todos.</span><button class="btn" data-a="sheet" data-s="open">Abrir votación</button></div>';
+ if(st==='votacion')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Cerrar la votación</b><span class="small">Gana quien tenga más votos en cada pilar. Los resultados quedan guardados sin mostrarse al equipo.</span><button class="btn" data-a="sheet" data-s="toClose">Cerrar votación</button><button class="btn sec sm" data-a="sheet" data-s="extend">Cambiar fecha límite</button></div>';
  if(st==='cerrado')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Mostrar a los ganadores</b><span class="small">Todos verán la revelación animada de cada pilar con sus reconocimientos.</span><button class="btn" data-a="sheet" data-s="toReveal">Mostrar ganadores a todos</button></div>';
  if(st==='revelado')action='<div class="card"><span class="kicker">Mes terminado</span><b class="h2">Ganadores publicados</b><span class="small">Proyecta la revelación en la reunión. Cuando termines, cierra el mes para abrir el siguiente.</span><button class="btn" data-a="adminReveal">Proyectar revelación</button><button class="btn sec sm" data-a="sheet" data-s="archive">Cerrar mes y preparar el siguiente</button></div>';
- var open=st==='nominacion'||st==='finalistas';
+ var open=st==='votacion';
  return '<div class="pad"><div class="topline"><span class="wm">KIBERNUM</span><span class="st lil">Administrador</span></div>'+flash()+
   head(st==='idle'?'Sin mes abierto':esc(c.month),'Panel de Kiber Champions','')+
   (st!=='idle'?'<div class="stepper" aria-label="Etapa actual">'+step+'</div>':'')+
-  (open?countdown(c,st==='nominacion'?'La nominación cierra en':'La votación final cierra en'):'')+
-  (open?'<button class="kpi" data-a="tab" data-s="adminPeople"><span><b class="g">'+n+'<small>/'+tot+'</small></b><em>ya votaron</em></span><span><b>'+(tot-n)+'</b><em>faltan · ver quiénes</em></span></button><div class="bar" aria-hidden="true"><i style="width:'+Math.round(n/Math.max(1,tot)*100)+'%"></i></div>':'')+
+  (open?countdown(c,'La votación cierra en'):'')+
+  (st!=='idle'?'<button class="kpi" data-a="tab" data-s="adminPeople"><span><b class="g">'+n+'<small>/'+tot+'</small></b><em>ya votaron</em></span><span><b>'+(tot-n)+'</b><em>'+(open?'faltan · ver quiénes':'no votaron')+'</em></span></button><div class="bar" aria-hidden="true"><i style="width:'+Math.round(n/Math.max(1,tot)*100)+'%"></i></div>':'')+
   action+'</div>'};
 
 V.adminPeople=function(){var st=A.cycle.stage;
- if(st!=='nominacion'&&st!=='finalistas')return '<div class="pad">'+head('Participación','No hay una votación abierta','')+'<p class="lead">Cuando abras una etapa, aquí verás quién ya votó y quién falta.</p></div>';
- var k=st==='finalistas'?'fin':'nom';var rows=A.participation;var missing=rows.filter(function(x){return !x[k]});
- var show=function(x){return S.peopleFilter==='all'||!x[k]};
+ if(st==='idle')return '<div class="pad">'+head('Participación','No hay una votación abierta','')+'<p class="lead">Cuando abras la votación, aquí verás quién ya votó y quién falta.</p></div>';
+ var rows=A.participation;var missing=rows.filter(function(x){return !x.ts});
+ var show=function(x){return S.peopleFilter==='all'||!x.ts};
  var groups=Object.keys(AREAS).map(function(a){var tot=rows.filter(function(x){return P(x.id).area===a});var ps=tot.filter(show);if(!ps.length)return '';
-  return '<div class="group"><div class="gh">'+AREAS[a]+'<span>'+tot.filter(function(x){return x[k]}).length+' de '+tot.length+'</span></div>'+ps.map(function(x){var p=P(x.id);return '<div class="person">'+av(p,36)+'<span class="t"><b>'+esc(p.name)+'</b><small>'+(x[k]?'Votó · '+new Date(x[k]).toLocaleDateString('es-CL',{day:'numeric',month:'short'}):'Aún no vota')+'</small></span>'+(x[k]?'<span class="st">Votó</span>':'<span class="st alert">Falta</span>')+'</div>'}).join('')+'</div>'}).join('');
+  return '<div class="group"><div class="gh">'+AREAS[a]+'<span>'+tot.filter(function(x){return x.ts}).length+' de '+tot.length+'</span></div>'+ps.map(function(x){var p=P(x.id);return '<div class="person">'+av(p,36)+'<span class="t"><b>'+esc(p.name)+'</b><small>'+(x.ts?'Votó · '+new Date(x.ts).toLocaleDateString('es-CL',{day:'numeric',month:'short'}):'Aún no vota')+'</small></span>'+(x.ts?'<span class="st">Votó</span>':'<span class="st alert">Falta</span>')+'</div>'}).join('')+'</div>'}).join('');
  var away=people().filter(function(p){return !p.active});
- return '<div class="pad">'+head('Participación · '+(st==='finalistas'?'votación final':'nominación'),missing.length?(missing.length===1?'1 persona aún no vota':missing.length+' personas aún no votan'):'Todo el equipo ya votó','Ves quién participó, no por quién votó.')+
+ return '<div class="pad">'+head('Participación · '+esc(A.cycle.month),missing.length?(missing.length===1?'1 persona aún no vota':missing.length+' personas aún no votan'):'Todo el equipo ya votó','Ves quién participó, no por quién votó.')+
   '<div class="seg" role="group" aria-label="Filtro"><button data-a="filter" data-f="all" aria-pressed="'+(S.peopleFilter==='all')+'">Todos ('+rows.length+')</button><button data-a="filter" data-f="missing" aria-pressed="'+(S.peopleFilter==='missing')+'">Faltan ('+missing.length+')</button></div>'+
-  (missing.length?'<button class="btn sec sm" data-a="copyMissing">Copiar nombres de quienes faltan</button><p class="small" id="copyMsg" role="status"></p>':'')+
+  (missing.length&&st==='votacion'?'<button class="btn sec sm" data-a="copyMissing">Copiar nombres de quienes faltan</button><p class="small" id="copyMsg" role="status"></p>':'')+
   '<div style="display:grid;gap:14px">'+(groups||'<p class="small">Nadie falta. ¡Todo el equipo votó!</p>')+'</div>'+
   (away.length?'<p class="small">No participan este mes: '+away.map(function(p){return esc(p.name)+(p.note?' ('+esc(p.note.toLowerCase())+')':'')}).join(', ')+'.</p>':'')+'</div>'};
 
 V.adminVotes=function(){var st=A.cycle.stage;
- if(st==='idle'||!A.nomTally)return '<div class="pad">'+head('Votos','No hay votos todavía','Cuando abras la nominación, aquí verás cuántos votos recibe cada persona.')+'</div>';
- var hasFin=!!A.finTally;var view=hasFin?S.voteView:'nom';
+ if(st==='idle'||!A.tally)return '<div class="pad">'+head('Votos','No hay votos todavía','Cuando abras la votación, aquí verás cuántos votos recibe cada persona.')+'</div>';
+ var lead=st==='votacion';
  return '<div class="pad">'+head('Votos · '+esc(A.cycle.month),'Por quién se votó','Ves cuántos votos recibió cada persona. Los votos no guardan quién los dio.')+
-  (hasFin?'<div class="seg" role="group" aria-label="Ronda"><button data-a="vview" data-v="nom" aria-pressed="'+(view==='nom')+'">Nominación</button><button data-a="vview" data-v="fin" aria-pressed="'+(view==='fin')+'">Finalistas</button></div>':'')+
-  PILLARS.map(function(p){var rows=view==='nom'?A.nomTally[p.id].rows:A.finTally[p.id];var max=Math.max.apply(null,[1].concat(rows.map(function(x){return x.votes})));
-   var fx=view==='nom'?(A.preview?A.preview[p.id]:(A.finalists?A.finalists[p.id]:[]))||[]:[];var win=A.winners?A.winners[p.id]:[];
-   var skips=view==='nom'?A.nomTally[p.id].skips:0;
+  PILLARS.map(function(p){var rows=A.tally[p.id].rows;var max=Math.max.apply(null,[1].concat(rows.map(function(x){return x.votes})));
+   var top=(lead?A.leaders:A.winners||A.leaders)[p.id]||[];var skips=A.tally[p.id].skips;
    return '<div style="display:grid;gap:4px"><div style="display:flex;align-items:center;gap:10px;padding-bottom:4px">'+medal(p.id,32)+'<b class="h2" style="font-size:15px">'+p.name+'</b></div>'+
-   (rows.length?rows.map(function(x){var tag=view==='fin'&&win&&win.indexOf(x.id)>=0?' <small>· ganador</small>':fx.indexOf(x.id)>=0?' <small>· finalista</small>':'';return '<div class="vrow"><b>'+esc(P(x.id).name)+tag+'</b><em>'+x.votes+'</em><div class="bar"><i style="width:'+Math.round(x.votes/max*100)+'%"></i></div></div>'}).join(''):'<p class="small">Sin votos todavía.</p>')+
+   (rows.length?rows.map(function(x){var tag=top.indexOf(x.id)>=0?' <small>· '+(lead?'va ganando':'ganador')+'</small>':'';return '<div class="vrow"><b>'+esc(P(x.id).name)+tag+'</b><em>'+x.votes+'</em><div class="bar"><i style="width:'+Math.round(x.votes/max*100)+'%"></i></div></div>'}).join(''):'<p class="small">Sin votos todavía.</p>')+
    (skips?'<p class="small">'+skips+' '+(skips===1?'persona omitió':'personas omitieron')+' este pilar.</p>':'')+'</div>'}).join('')+
-  (view==='nom'&&st==='nominacion'?'<p class="small">“Finalista” indica quién pasaría si cerraras ahora.</p>':'')+'</div>'};
+  (lead?'<p class="small">“Va ganando” indica quién se llevaría el pin si cerraras ahora. Si hay empate, el pin es compartido.</p>':'')+'</div>'};
 
 /* Hojas de confirmación */
 function pad2(n){return String(n).padStart(2,'0')}
@@ -998,18 +930,14 @@ function at18(days){var d=new Date(now());d.setDate(d.getDate()+days);d.setHours
 function monthOptions(){var d=new Date(now());var out=[];for(var k=-2;k<=1;k++){var x=new Date(d.getFullYear(),d.getMonth()+k,1);out.push(MONTHS[x.getMonth()]+' '+x.getFullYear())}return out}
 function currentMonthName(){var d=new Date(now());return MONTHS[d.getMonth()]+' '+d.getFullYear()}
 var SHEETS={
- open:function(){return {title:'Abrir nominación',body:'<div class="field"><label for="fMonth">Mes que se evalúa</label><select id="fMonth">'+monthOptions().map(function(m){return '<option'+(m===currentMonthName()?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>'+
-   '<div class="field"><label for="fDate">Fecha límite para nominar</label><input id="fDate" type="datetime-local" value="'+toLocalInput(at18(5))+'"></div><p class="small">El contador aparecerá en la pantalla de inicio de todos.</p>',ok:'Abrir nominación'}},
- toFinal:function(){var f=A.preview||{};var tie=PILLARS.some(function(p){return (f[p.id]||[]).length>3});var empty=PILLARS.filter(function(p){return !(f[p.id]||[]).length});
-   return {title:'Cerrar nominación',body:'<p class="lead">Votaron '+aCount()+' de '+A.participation.length+'. Estos son los finalistas que se anunciarán:</p>'+
-   '<div class="list">'+PILLARS.map(function(p){return '<div class="prow" style="min-height:0">'+medal(p.id,36)+'<span class="t"><b>'+p.name+'</b><span>'+((f[p.id]||[]).map(function(id){return esc(P(id).name)}).join(', ')||'Sin nominaciones')+'</span></span></div>'}).join('')+'</div>'+
-   (tie?'<p class="small">Hay un empate en el tercer lugar: pasan todas las personas empatadas.</p>':'')+
-   (empty.length?'<p class="small">'+empty.map(function(p){return p.name}).join(', ')+' no tiene nominaciones; ese pilar quedará sin ganador.</p>':'')+
-   '<div class="field"><label for="fDate">Fecha límite de la votación final</label><input id="fDate" type="datetime-local" value="'+toLocalInput(at18(3))+'"></div>',ok:'Anunciar finalistas'}},
- toClose:function(){return {title:'Cerrar votación final',body:'<p class="lead">Votaron '+aCount()+' de '+A.participation.length+'. Al cerrar se calculan los ganadores y quedan guardados sin mostrarse al equipo hasta que los reveles.</p>',ok:'Cerrar y calcular ganadores'}},
+ open:function(){return {title:'Abrir votación',body:'<div class="field"><label for="fMonth">Mes que se evalúa</label><select id="fMonth">'+monthOptions().map(function(m){return '<option'+(m===currentMonthName()?' selected':'')+'>'+m+'</option>'}).join('')+'</select></div>'+
+   '<div class="field"><label for="fDate">Fecha límite para votar</label><input id="fDate" type="datetime-local" value="'+toLocalInput(at18(5))+'"></div><p class="small">El contador aparecerá en la pantalla de inicio de todos.</p>',ok:'Abrir votación'}},
+ toClose:function(){var l=A.leaders||{};var empty=PILLARS.filter(function(p){return !(l[p.id]||[]).length});
+   return {title:'Cerrar votación',body:'<p class="lead">Votaron '+aCount()+' de '+A.participation.length+'. Al cerrar se calculan los ganadores y quedan guardados sin mostrarse al equipo hasta que los reveles.</p>'+
+   (empty.length?'<p class="small">'+empty.map(function(p){return p.name}).join(', ')+' no tiene votos; ese pilar quedará sin ganador.</p>':''),ok:'Cerrar y calcular ganadores'}},
  toReveal:function(){return {title:'Mostrar ganadores',body:'<p class="lead">Todo el equipo verá la revelación y los reconocimientos. Esto no se puede ocultar después.</p>',ok:'Mostrar a todos'}},
  extend:function(){return {title:'Cambiar fecha límite',body:'<div class="field"><label for="fDate">Nueva fecha límite</label><input id="fDate" type="datetime-local" value="'+toLocalInput(deadlineOf(A.cycle)||at18(2))+'"></div>',ok:'Guardar fecha'}},
- archive:function(){return {title:'Cerrar el mes',body:'<p class="lead">'+esc(A.cycle.month)+' pasa al Salón de Champions y el panel queda listo para abrir la próxima nominación.</p>',ok:'Cerrar mes'}}
+ archive:function(){return {title:'Cerrar el mes',body:'<p class="lead">'+esc(A.cycle.month)+' pasa al Salón de Champions y el panel queda listo para abrir la próxima votación.</p>',ok:'Cerrar mes'}}
 };
 function renderSheet(){var o=document.getElementById('overlay');if(!S.sheet){o.innerHTML='';return}var sh=SHEETS[S.sheet]();
  var keep={};['fMonth','fDate'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
@@ -1019,14 +947,13 @@ function renderSheet(){var o=document.getElementById('overlay');if(!S.sheet){o.i
 function confirmSheet(){var k=S.sheet;var dEl=document.getElementById('fDate');var when=dEl&&dEl.value?new Date(dEl.value).getTime():null;
  if(dEl&&(!when||isNaN(when)||when<=now())){S.sheetErr='Elige una fecha y hora futura.';renderSheet();return}
  S.sheetErr='';var t=S.token;var p,msg;
- if(k==='open'){var m=document.getElementById('fMonth').value;p=api('adminOpen',t,m,when);msg='Nominación de '+m+' abierta.'}
- if(k==='toFinal'){p=api('adminCloseNom',t,when);msg='Finalistas anunciados. La votación final está abierta.'}
- if(k==='toClose'){p=api('adminCloseFinal',t);msg='Votación cerrada. Ganadores guardados y ocultos.'}
+ if(k==='open'){var m=document.getElementById('fMonth').value;p=api('adminOpen',t,m,when);msg='Votación de '+m+' abierta.'}
+ if(k==='toClose'){p=api('adminClose',t);msg='Votación cerrada. Ganadores guardados y ocultos.'}
  if(k==='toReveal'){p=api('adminReveal',t);msg='Ganadores visibles para todo el equipo.'}
  if(k==='extend'){p=api('adminExtend',t,when);msg='Nueva fecha límite: '+fmtDate(when)+'.'}
- if(k==='archive'){p=api('adminArchive',t);msg='Mes cerrado. Ya puedes abrir la próxima nominación.'}
+ if(k==='archive'){p=api('adminArchive',t);msg='Mes cerrado. Ya puedes abrir la próxima votación.'}
  renderSheet();
- run(p,function(a){setA(a);S.sheet=null;S.flash={msg:msg};S.voteView=a.finTally?'fin':'nom';S.stack=['admin'];render()});
+ run(p,function(a){setA(a);S.sheet=null;S.flash={msg:msg};S.stack=['admin'];render()});
 }
 
 /* ---------- Render ---------- */
@@ -1088,28 +1015,24 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'retry':S.fatal=null;render();boot();break;
   case 'who':S.pending=t.getAttribute('data-id');S.q='';go('disclaimer');break;
   case 'accept':run(api('state',S.pending),function(g){setG(g);enterAs(S.pending)});break;
-  case 'switch':S.who=null;sset('rk-who',null);S.q='';root('login');break;
+  case 'switch':S.who=null;sset('rk-who',null);S.q='';run(refresh(),function(){root('login')});break;
   case 'back':S.stack.pop();if(!S.stack.length)S.stack=[S.token?'admin':S.who?'home':'login'];S.pin='';S.pinErr='';render();break;
   case 'tab':{var s=t.getAttribute('data-s');
-    if(s==='logout'){S.token=null;sset('rk-token',null,'s');S.pin='';root(S.who?'home':'login');break}
+    if(s==='logout'){S.token=null;sset('rk-token',null,'s');S.pin='';run(refresh(),function(){root(S.who&&G.me?'home':'login')});break}
     if(S.token){run(api('admin',S.token),function(x){setA(x);root(s)});break}
     if(G&&S.who){run(refresh(),function(){root(s)});break}
     root(s);break}
   case 'toPin':S.pin='';S.pinErr='';go('pin');break;
   case 'pillar':S.cur=pid;go('pillar');break;
-  case 'nominate':{if(stage()!=='nominacion'||G.me.votedNom||expired())return;S.cur=pid;var n=S.draft[pid];S.tmp=n&&!n.skip?{nominee:n.nominee,reason:n.reason}:{nominee:null,reason:''};S.q='';go('choose');break}
+  case 'nominate':{if(stage()!=='votacion'||G.me.voted||expired())return;S.cur=pid;var n=S.draft[pid];S.tmp=n&&!n.skip?{nominee:n.nominee,reason:n.reason}:{nominee:null,reason:''};S.q='';go('choose');break}
   case 'pick':S.tmp.nominee=t.getAttribute('data-id');render(true);break;
-  case 'skip':S.draft[S.cur]={skip:true};saveDraft();S.flash={msg:PL(S.cur).name+' queda sin nominación.'};root('home');break;
+  case 'skip':S.draft[S.cur]={skip:true};saveDraft();S.flash={msg:PL(S.cur).name+' queda sin voto.'};root('home');break;
   case 'toReason':go('reason');break;
   case 'start':S.tmp.reason=t.getAttribute('data-t');render(true);var ta=document.getElementById('reason');if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)}break;
   case 'saveReason':{S.draft[S.cur]={nominee:S.tmp.nominee,reason:S.tmp.reason.replace(/\s+/g,' ').trim()};saveDraft();var np=PILLARS.filter(function(p){return !S.draft[p.id]})[0];
-    S.flash={msg:'Nominaste a '+P(S.tmp.nominee).name+' en '+PL(S.cur).name+'.'+(np?' Te falta '+np.name+'.':' Ya puedes revisar y enviar.')};root('home');break}
+    S.flash={msg:'Elegiste a '+P(S.tmp.nominee).name+' en '+PL(S.cur).name+'.'+(np?' Te falta '+np.name+'.':' Ya puedes revisar y enviar.')};root('home');break}
   case 'review':go('review');break;
-  case 'sendNom':run(api('nominate',S.who,S.draft),function(g){setG(g);S.draft={};saveDraft();S.flash={msg:'Nominaciones enviadas. ¡Gracias por reconocer!'};root('home')});break;
-  case 'final':S.cur=pid;go('final');break;
-  case 'fpick':S.fdraft[S.cur]=t.getAttribute('data-id');saveDraft();render(true);break;
-  case 'fsave':{var nf=PILLARS.filter(function(p){return eligible(p.id).length&&!S.fdraft[p.id]})[0];S.flash={msg:'Voto guardado en '+PL(S.cur).name+'.'+(nf?' Te falta '+nf.name+'.':' Ya puedes enviar.')};root('home');break}
-  case 'fsend':run(api('vote',S.who,S.fdraft),function(g){setG(g);S.fdraft={};saveDraft();S.flash={msg:'Voto final enviado. Gracias.'};root('home')});break;
+  case 'sendNom':run(api('vote',S.who,S.draft),function(g){setG(g);S.draft={};saveDraft();S.flash={msg:'Voto enviado. ¡Gracias por reconocer!'};root('home')});break;
   case 'startReveal':run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'adminReveal':run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'nextReveal':S.reveal={i:S.reveal.i+1,phase:'count'};render();break;
@@ -1125,8 +1048,7 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'closeSheet':S.sheet=null;S.sheetErr='';renderSheet();break;
   case 'confirmSheet':confirmSheet();break;
   case 'filter':S.peopleFilter=t.getAttribute('data-f');render(true);break;
-  case 'vview':S.voteView=t.getAttribute('data-v');render(true);break;
-  case 'copyMissing':{var k2=A.cycle.stage==='finalistas'?'fin':'nom';var txt=A.participation.filter(function(x){return !x[k2]}).map(function(x){return P(x.id).name}).join(', ');var msg=document.getElementById('copyMsg');
+  case 'copyMissing':{var txt=A.participation.filter(function(x){return !x.ts}).map(function(x){return P(x.id).name}).join(', ');var msg=document.getElementById('copyMsg');
     var ok=function(){msg.textContent='Copiado: '+txt};var no=function(){msg.textContent=txt};try{navigator.clipboard.writeText(txt).then(ok,no)}catch(err){no()}break}
  }
 });
@@ -1134,7 +1056,7 @@ document.getElementById('app').addEventListener('click',function(e){
 /* Refresco suave cada 45 s en pantallas de consulta */
 setInterval(function(){if(S.busy||S.sheet||document.hidden)return;var s=cur();
  if(S.token&&['admin','adminPeople','adminVotes'].indexOf(s)>=0)api('admin',S.token).then(function(x){setA(x);render(true)}).catch(function(){});
- else if(S.who&&['home','winners'].indexOf(s)>=0)refresh().then(function(){render(true)}).catch(function(){});
+ else if(['home','winners','login'].indexOf(s)>=0&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))refresh().then(function(){if(['home','winners','login'].indexOf(cur())>=0)render(true)}).catch(function(){});
 },45000);
 
 function boot(){

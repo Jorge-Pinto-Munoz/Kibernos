@@ -1,4 +1,4 @@
-/* Revisión automática de UI de Rekonoce.
+/* Revisión automática de UI de ReKonoce.
    Recorre cada pantalla y estado en varios tamaños de teléfono y mide:
    desbordes, elementos que se salen de su contenedor, solapes, texto recortado,
    imágenes rotas, objetivos táctiles chicos, contraste y errores de consola.
@@ -22,25 +22,24 @@ const seq = (...fns) => async page => { for (const f of fns) await f(page); };
 const typePin = pin => async page => { for (const d of pin) await page.click(`[data-k="${d}"]`); await page.waitForTimeout(300); };
 
 const SCREENS = [
-  ['login', 'nom', null],
-  ['login-busqueda', 'nom', seq(async p => { await p.fill('#q', 'mar'); await p.waitForTimeout(100); })],
+  ['quien-eres', 'nom', null],
+  ['quien-eres-busqueda', 'nom', seq(async p => { await p.fill('#q', 'mar'); await p.waitForTimeout(100); })],
+  ['quien-eres-sin-votacion', 'idle', null],
+  ['quien-eres-cerrada', 'cerrado', null],
+  ['quien-eres-revelado', 'revelado', null],
   ['aviso-anonimato', 'nom', click('[data-id="mo"]')],
   ['pin', 'nom', click('[data-a="toPin"]')],
   ['pin-error', 'nom', seq(click('[data-a="toPin"]'), typePin('1111'))],
-  ['inicio-nominacion', 'nom|mo', null],
-  ['inicio-nominacion-parcial', 'nom|mo|' + draft2, null],
-  ['inicio-nominacion-lista', 'nom|mo|' + draft('mo'), null],
-  ['inicio-ya-nomino', 'nom|rm', null],
+  ['inicio-votacion', 'nom|mo', null],
+  ['inicio-votacion-parcial', 'nom|mo|' + draft2, null],
+  ['inicio-votacion-lista', 'nom|mo|' + draft('mo'), null],
+  ['inicio-ya-voto', 'nom|rm', null],
   ['inicio-plazo-vencido', 'nom-expired|mo', null],
   ['pilares', 'nom|mo', click('[data-s="pillars"]')],
   ['pilar-responsabilidad', 'nom|mo', seq(click('.tabs [data-s="pillars"]'), click('[data-p="responsabilidad"]'))],
   ['elegir-persona', 'nom|mo', click('[data-p="respeto"]')],
   ['motivo', 'nom|mo', seq(click('[data-p="respeto"]'), click('[data-id="mc"]'), click('[data-a="toReason"]'), async p => { await p.fill('#reason', 'En la retro más difícil del año dejó hablar a todos y frenó las interrupciones.'); })],
   ['revisar-envio', 'nom|mo|' + draft('mo'), click('[data-a="review"]')],
-  ['inicio-finalistas', 'fin|mo', null],
-  ['voto-final', 'fin|mo', click('[data-p="colaboracion"]')],
-  ['voto-final-soy-finalista', 'fin|rm', click('[data-p="colaboracion"]')],
-  ['inicio-ya-voto-final', 'fin|bb', null],
   ['inicio-cerrado', 'cerrado|mo', null],
   ['inicio-revelado', 'revelado|mo', null],
   ['revelacion-cuenta', 'revelado|mo', click('[data-a="startReveal"]')],
@@ -52,18 +51,16 @@ const SCREENS = [
   ['admin-sin-mes', 'idle|admin', null],
   ['admin-hoja-abrir', 'idle|admin', click('[data-s="open"]')],
   ['admin-hoja-error', 'idle|admin', seq(click('[data-s="open"]'), async p => { await p.fill('#fDate', '2020-01-01T10:00'); }, click('[data-a="confirmSheet"]'))],
-  ['admin-nominacion', 'nom|admin', null],
+  ['admin-votacion', 'nom|admin', null],
   ['admin-participacion', 'nom|admin', click('[data-s="adminPeople"]')],
   ['admin-participacion-faltan', 'nom|admin', seq(click('.tabs [data-s="adminPeople"]'), click('[data-f="missing"]'))],
-  ['admin-votos-nominacion', 'nom|admin', click('.tabs [data-s="adminVotes"]')],
-  ['admin-hoja-finalistas', 'nom|admin', click('[data-s="toFinal"]')],
+  ['admin-votos', 'nom|admin', click('.tabs [data-s="adminVotes"]')],
+  ['admin-hoja-cerrar', 'nom|admin', click('[data-s="toClose"]')],
   ['admin-hoja-fecha', 'nom|admin', click('[data-s="extend"]')],
-  ['admin-finalistas', 'fin|admin', null],
-  ['admin-votos-finalistas', 'fin|admin', click('.tabs [data-s="adminVotes"]')],
   ['admin-cerrado', 'cerrado|admin', null],
+  ['admin-votos-cerrado', 'cerrado|admin', click('.tabs [data-s="adminVotes"]')],
   ['admin-hoja-revelar', 'cerrado|admin', click('[data-s="toReveal"]')],
-  ['admin-revelado', 'revelado|admin', null],
-  ['admin-votos-revelado', 'revelado|admin', click('.tabs [data-s="adminVotes"]')]
+  ['admin-revelado', 'revelado|admin', null]
 ];
 
 function audit() {
@@ -119,7 +116,7 @@ function audit() {
   }
   // Solapes entre hermanos
   for (const el of all) {
-    if (el.matches('.rings,svg')) continue;
+    if (el.matches('.rings,svg,.faces')) continue; // .faces: caras apiladas a propósito
     const kids = [...el.children].filter(k => vis(k) && inFlow(k) && k.tagName !== 'CANVAS');
     for (let i = 0; i < kids.length; i++) for (let j = i + 1; j < kids.length; j++) {
       const a = kids[i].getBoundingClientRect(), b = kids[j].getBoundingClientRect();
@@ -175,7 +172,7 @@ function audit() {
   }
   await browser.close();
   const names = Object.keys(report);
-  let md = `# QA de UI · Rekonoce\n\n${SCREENS.length} pantallas × ${VIEWPORTS.length} tamaños (${VIEWPORTS.map(v => v[0]).join(', ')} px).\n\n`;
+  let md = `# QA de UI · ReKonoce\n\n${SCREENS.length} pantallas × ${VIEWPORTS.length} tamaños (${VIEWPORTS.map(v => v[0]).join(', ')} px).\n\n`;
   if (!names.length) md += 'Sin problemas detectados.\n';
   for (const n of names) {
     md += `## ${n}\n`;
