@@ -167,6 +167,8 @@ button.wrow{width:100%;text-align:left;min-height:60px}
 .st.champ{background:var(--lilac-wash)}
 .card-quote{background:var(--warm);border-radius:0 var(--r) var(--r) 0;padding:10px 14px}
 
+.share .url{display:block;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
 .cd .lbl{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;font-size:12px;color:var(--ink-3)}
@@ -344,6 +346,8 @@ var PILLARS=[
 var AREAS={delivery:'Delivery',talent:'Talent Acquisition',support:'Delivery Support'};
 var MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var MIN_REASON=40;
+/* Link público de la app (Implementar → Aplicación web) */
+var APP_URL='https://script.google.com/macros/s/AKfycbyC7S7mgw4eP7b3xQ6NYlKgIgTepk7P1d0hi5cmLL4l67xj2tR6QCh5fUA55QUXjm6F/exec';
 
 var G=null, A=null, offset=0;
 var S={stack:['loading'],who:null,token:null,draft:{},fdraft:{},tmp:null,cur:null,q:'',pin:'',pinErr:'',flash:null,sheet:null,sheetErr:'',
@@ -605,7 +609,10 @@ V.admin=function(){var c=A.cycle,st=c.stage;var idx=-1;STAGES.forEach(function(s
   (st!=='idle'?'<div class="stepper" aria-label="Etapa actual">'+step+'</div>':'')+
   (open?countdown(c,'La votación cierra en'):'')+
   (st!=='idle'?'<button class="kpi" data-a="tab" data-s="adminPeople"><span><b class="g">'+n+'<small>/'+tot+'</small></b><em>ya votaron</em></span><span><b>'+(tot-n)+'</b><em>'+(open?'faltan · ver quiénes':'no votaron')+'</em></span></button><div class="bar" aria-hidden="true"><i style="width:'+Math.round(n/Math.max(1,tot)*100)+'%"></i></div>':'')+
-  action+'</div>'};
+  action+shareCard()+'</div>'};
+function shareCard(){return '<div class="card share"><span class="kicker">Link para el equipo</span><b class="h2" style="font-size:15px">Comparte ReKonoce</b>'+
+  '<span class="small">Mándalo por WhatsApp, Teams o correo. En el teléfono se puede agregar a la pantalla de inicio.</span>'+
+  '<code class="url" id="appUrl">'+esc(APP_URL)+'</code><button class="btn sm" data-a="copyUrl">Copiar link</button><p class="small" id="urlMsg" role="status"></p></div>'}
 
 V.adminPeople=function(){var st=A.cycle.stage;
  if(st==='idle')return '<div class="pad">'+head('Participación','No hay una votación abierta','')+'<p class="lead">Cuando abras la votación, aquí verás quién ya votó y quién falta.</p></div>';
@@ -758,6 +765,8 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'closeSheet':S.sheet=null;S.sheetErr='';renderSheet();break;
   case 'confirmSheet':confirmSheet();break;
   case 'filter':S.peopleFilter=t.getAttribute('data-f');render(true);break;
+  case 'copyUrl':{var um=document.getElementById('urlMsg');var okU=function(){um.textContent='Link copiado.'};var noU=function(){um.textContent='Mantén presionado el link para copiarlo.';var r=document.createRange();r.selectNodeContents(document.getElementById('appUrl'));var sel=window.getSelection();sel.removeAllRanges();sel.addRange(r)};
+    try{navigator.clipboard.writeText(APP_URL).then(okU,noU)}catch(err){noU()}break}
   case 'copyMissing':{var txt=A.participation.filter(function(x){return !x.ts}).map(function(x){return P(x.id).name}).join(', ');var msg=document.getElementById('copyMsg');
     var ok=function(){msg.textContent='Copiado: '+txt};var no=function(){msg.textContent=txt};try{navigator.clipboard.writeText(txt).then(ok,no)}catch(err){no()}break}
  }

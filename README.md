@@ -1,5 +1,7 @@
 # ReKonoce · Kiber Champions
 
+**App en producción:** https://script.google.com/macros/s/AKfycbyC7S7mgw4eP7b3xQ6NYlKgIgTepk7P1d0hi5cmLL4l67xj2tR6QCh5fUA55QUXjm6F/exec
+
 Web app mobile first para que el equipo se reconozca cada mes en los cuatro pilares de Kiber Champions: Colaboración, Responsabilidad, Respeto y Comunicación. Corre en **Google Apps Script** y guarda los datos en una **Hoja de cálculo de Google**.
 
 ## Cómo funciona un mes
