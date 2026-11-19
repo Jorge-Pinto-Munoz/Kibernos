@@ -39,7 +39,7 @@ function makeEnv() {
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: c => ({ content: c, setMimeType() { return this; } }) }
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'dist', 'Code.gs'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'dist', 'apps-script', 'Code.gs'), 'utf8'), ctx);
   const call = (name, ...args) => JSON.parse(ctx.rkApi(name, args));
   return { ctx, sheets, cache, props, logs, call };
 }

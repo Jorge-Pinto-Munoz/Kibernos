@@ -272,8 +272,8 @@ var RK = (function () {
 /**
  * ReKonoce · servidor Apps Script.
  *
- * - doGet() sirve la app (Index.html).
- * - rkApi(name, args) es el único endpoint que usa el cliente (google.script.run.rkApi).
+ * - La app (index.html) se publica en Netlify y llama a doPost() por HTTPS.
+ * - doPost() y rkApi(name, args) son la única entrada: votar, leer el estado y el panel de administrador.
  * - Los datos viven en una Hoja de cálculo de Google con 5 pestañas (ver setup()).
  *
  * Primera vez: ejecuta setup() desde el editor. Crea las pestañas, carga al equipo
@@ -316,21 +316,11 @@ var TEAM = [
   ['sc', 'Sofía Calderón', 'support', 'Postnatal', false]
 ];
 
-/* ---------- Web app ---------- */
+/* ---------- Servidor de datos (la app vive en Netlify) ---------- */
+/** Abrir el link /exec en el navegador solo confirma que el servidor está activo. */
 function doGet() {
-  return HtmlService.createTemplateFromFile(indexName_()).evaluate()
-    .setTitle('ReKonoce · Kiber Champions')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .setFaviconUrl('https://ssl.gstatic.com/docs/script/images/favicon.ico');
-}
-
-/** Busca el HTML principal aunque se haya nombrado con otra mayúscula o con «.html». */
-function indexName_() {
-  var names = ['Index', 'index', 'INDEX', 'Index.html', 'index.html', 'Index.html.html', 'Index ', 'Página', 'Pagina'];
-  for (var i = 0; i < names.length; i++) {
-    try { HtmlService.createHtmlOutputFromFile(names[i]); return names[i]; } catch (e) { }
-  }
-  throw new Error('Falta el archivo HTML «Index». En el editor: + → HTML, nómbralo Index y pega Index.html. Luego Implementar → Nueva versión.');
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'ReKonoce', servidor: 'activo' }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
@@ -349,9 +339,6 @@ function doPost(e) {
   return ContentService.createTextOutput(out).setMimeType(ContentService.MimeType.JSON);
 }
 
-function include(name) {
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
-}
 
 /** Endpoint único. Devuelve un string JSON: {ok, data} o {ok:false, error}. */
 var WRITES_ = ['vote', 'adminOpen', 'adminClose', 'adminReveal', 'adminExtend', 'adminArchive'];

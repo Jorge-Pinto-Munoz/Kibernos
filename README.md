@@ -18,25 +18,27 @@ Web app mobile first para que el equipo se reconozca cada mes en los cuatro pila
 
 **Anonimato.** La app guarda *quién participó* y *por quién se votó* en pestañas separadas. Las papeletas no llevan nombre ni hora y se insertan en filas al azar. Por eso la app muestra quién ya votó (✓) y cuántos votos recibió cada persona, pero no puede mostrar quién votó por quién.
 
-## Instalar en Google (15 minutos)
+## Cómo está armado
 
-1. En Google Drive crea una Hoja de cálculo nueva, por ejemplo `ReKonoce · datos`.
-2. En la hoja: **Extensiones → Apps Script**.
-3. **Forma rápida:** pega `dist/Code.gs` en el archivo `Code.gs` del editor, crea un archivo HTML llamado `Index` y pega `dist/Index.html`. Después reemplaza el manifiesto (ver abajo). Para regenerar `dist/` tras un cambio: `node scripts/build-dist.js`.
+- **Netlify** publica la app: `dist/netlify/index.html` (un solo archivo con estilos, pines y fotos).
+- **Google Apps Script** es el servidor de datos: `dist/apps-script/Code.gs`. Recibe los votos por HTTPS (`doPost`) y los guarda en una Hoja de cálculo de tu Drive.
+- El link del servidor está en `apps-script/App.html` (`API_URL`). Si cambias de implementación, actualízalo y vuelve a generar `dist/` con `node scripts/build-dist.js`.
 
-   **Forma por partes:** en el editor crea estos archivos y pega el contenido de la carpeta `apps-script/`:
-   - Secuencia de comandos (`+` → Secuencia de comandos): `Code`, `Logic`
-   - HTML (`+` → HTML): `Index`, `Styles`, `App`, `Pins`, `Avatars`
-   - En **Configuración del proyecto** activa "Mostrar el archivo de manifiesto appsscript.json" y reemplázalo por `apps-script/appsscript.json`.
-4. Elige la función `setup` en la barra superior y presiona **Ejecutar**. Autoriza los permisos. Esto crea las pestañas, carga al equipo y guarda el PIN.
-5. **Implementar → Nueva implementación → Aplicación web**.
-   - Ejecutar como: **Yo**.
-   - Quién tiene acceso: **Cualquier usuario** (o "Cualquier usuario de Kibernum" si el equipo usa cuentas de Google de la empresa).
-6. Copia la URL que termina en `/exec` y compártela con el equipo. En el teléfono: abrir en el navegador → **Agregar a pantalla de inicio**.
+## Instalar
 
-Alternativa con terminal: `npx @google/clasp login`, luego `npx @google/clasp create --type sheets --title "ReKonoce" --rootDir apps-script` y `npx @google/clasp push`. Después sigue desde el paso 4.
+**Google (servidor de datos, una vez)**
+1. En [script.google.com](https://script.google.com) abre el proyecto (o crea uno nuevo).
+2. Deja un solo archivo, `Código.gs`, y pega `dist/apps-script/Code.gs`. Si existe un archivo `Index.html`, se puede borrar: ya no se usa.
+3. Elige la función `setup` y presiona **Ejecutar**. Autoriza. Se crea la Hoja «ReKonoce · datos» en tu Drive con el equipo cargado y el PIN.
+4. **Implementar → Nueva implementación → Aplicación web** (o, si ya existe, **Administrar implementaciones → lápiz → Nueva versión**). Ejecutar como **Yo**; acceso **Cualquier usuario**.
+5. Abre el link `/exec`: debe mostrar `{"ok":true,"app":"ReKonoce","servidor":"activo"}`.
 
-**Al cambiar el código:** Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión. La URL se mantiene.
+**Netlify (la app)**
+1. Pon `dist/netlify/index.html` solo en una carpeta.
+2. En Netlify: **Add new site → Deploy manually** y arrastra la carpeta (o, en un sitio existente, **Deploys** → arrastra la carpeta).
+3. Comparte el link de Netlify con el equipo. Es el que aparece en la tarjeta «Link para el equipo» del panel.
+
+**Al cambiar el código:** `node scripts/build-dist.js`, pega el nuevo `Code.gs` y publica una **Nueva versión** (la URL `/exec` no cambia), y vuelve a subir `index.html` a Netlify.
 
 ## Qué guarda cada pestaña
 
@@ -49,14 +51,6 @@ Las primeras columnas las usa la app (ids cortos como `rm`); las de la derecha s
 | `Historial` | **ganadores**: «Colaboración: … · Responsabilidad: … · …» |
 
 Si la Hoja se creó con una versión anterior, vuelve a ejecutar `setup`: agrega los encabezados nuevos y completa los nombres de las filas existentes.
-
-## Publicar en Netlify (opcional)
-
-El mismo `dist/Index.html` funciona fuera de Google: carga desde Netlify y guarda en la Hoja a través del link `/exec` (función `doPost` de `Code.gs`).
-
-1. Crea una carpeta con el archivo renombrado a `index.html` (minúscula).
-2. En Netlify: **Add new site → Deploy manually** y arrastra la carpeta.
-3. La implementación de Apps Script debe estar publicada para **Cualquier usuario** y con la versión que incluye `doPost`.
 
 ## Ajustes del día a día
 
@@ -82,8 +76,10 @@ npm run qa
 - `npm run qa:ui`: revisa 47 pantallas y estados en 5 anchos (320, 360, 390, 430 y 1280 px). Busca elementos que se salen de su contenedor o del teléfono, pines fuera de su círculo, solapes, texto recortado, imágenes rotas, botones de menos de 44 px, contraste bajo AA y errores de consola. Deja capturas en `qa/screens/` y el informe en `qa/REPORT.md`.
 - `npm run qa:e2e`: recorrido completo a clics, del ingreso a la revelación y el cierre del mes.
 
+- `npm run qa:netlify`: la app servida «desde Netlify» contra el `Code.gs` real y una Hoja simulada.
+
 `docs/mockup/index.html` es la demo navegable generada por el mismo script (datos de ejemplo, se reinicia al recargar).
 
 ## Fotos del equipo
 
-Las fotos están en `assets/avatars/<id>.jpg` (el `id` de la pestaña `Personas`). Para cambiar o sumar una, reemplaza el archivo y ejecuta `python3 scripts/build-avatars.py .`: regenera `apps-script/Avatars.html`, que luego se pega en el editor de Apps Script. Quien no tenga foto aparece con sus iniciales.
+Las fotos están en `assets/avatars/<id>.jpg` (el `id` de la pestaña `Personas`). Para cambiar o sumar una, reemplaza el archivo y ejecuta `python3 scripts/build-avatars.py .`: regenera `apps-script/Avatars.html`; luego `node scripts/build-dist.js` y sube el nuevo `index.html` a Netlify. Quien no tenga foto aparece con sus iniciales.

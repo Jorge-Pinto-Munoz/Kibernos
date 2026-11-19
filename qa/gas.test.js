@@ -1,6 +1,6 @@
-/* Ejecuta el Code.gs real (dist/Code.gs) contra una simulación de Google Sheets y servicios de Apps Script.
+/* Ejecuta el Code.gs real (dist/apps-script/Code.gs) contra una simulación de Google Sheets y servicios de Apps Script.
    Verifica setup(), lo que queda escrito en cada pestaña (con nombres completos), la caché y el relleno de filas antiguas.
-   Uso: node scripts/build-dist.js && node --test qa/gas.test.js */
+   Uso: npm test */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { makeEnv } = require('./gasmock.js');
@@ -65,4 +65,10 @@ test('setup completa los nombres de filas guardadas con la versión anterior', (
   assert.equal(e.sheets.Nominaciones.grid[1][4], 'Margarita Cerda');
   assert.equal(e.sheets.Nominaciones.grid[1][5], 'Respeto');
   assert.match(e.sheets.Historial.grid[1][2], /Colaboración: Gloria Caro · Responsabilidad: sin ganador/);
+});
+
+test('abrir el link /exec solo confirma que el servidor está activo', () => {
+  const e = makeEnv();
+  const r = JSON.parse(e.ctx.doGet().content);
+  assert.equal(r.ok, true); assert.equal(r.servidor, 'activo');
 });

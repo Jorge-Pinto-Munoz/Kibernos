@@ -25,8 +25,10 @@ var PILLARS=[
 var AREAS={delivery:'Delivery',talent:'Talent Acquisition',support:'Delivery Support'};
 var MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var MIN_REASON=40;
-/* Link público de la app (Implementar → Aplicación web) */
-var APP_URL='https://script.google.com/macros/s/AKfycbyC7S7mgw4eP7b3xQ6NYlKgIgTepk7P1d0hi5cmLL4l67xj2tR6QCh5fUA55QUXjm6F/exec';
+/* Servidor de datos: link /exec de Apps Script (Implementar → Aplicación web) */
+/* Link para compartir con el equipo: la dirección donde está publicada la app */
+function shareUrl(){try{if(/^https?:/.test(location.protocol))return location.origin+location.pathname.replace(/index\.html$/,'')}catch(e){}return API_URL}
+var API_URL='https://script.google.com/macros/s/AKfycbyC7S7mgw4eP7b3xQ6NYlKgIgTepk7P1d0hi5cmLL4l67xj2tR6QCh5fUA55QUXjm6F/exec';
 
 var G=null, A=null, offset=0;
 var S={stack:['loading'],who:null,token:null,draft:{},fdraft:{},tmp:null,cur:null,q:'',pin:'',pinErr:'',flash:null,sheet:null,sheetErr:'',
@@ -50,14 +52,14 @@ function monthWord(){return G&&G.cycle.month?G.cycle.month.split(' ')[0]:''}
 function hasServer(){try{return !!(window.google&&google.script&&google.script.run)}catch(e){return false}}
 /* Fuera de Apps Script (Netlify u otro hosting) se habla con el mismo servidor por HTTPS */
 function apiFetch(name,args){
-  return fetch(APP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({name:name,args:args}),redirect:'follow'})
+  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({name:name,args:args}),redirect:'follow'})
     .catch(function(){throw new Error('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.')})
     .then(function(r){return r.text()})
     .then(function(t){var r;try{r=JSON.parse(t)}catch(e){throw new Error('El servidor no respondió como se esperaba. Revisa que la implementación esté publicada para «Cualquier usuario».')}if(!r.ok)throw new Error(r.error);return r.data});
 }
 function api(name){
   var args=[].slice.call(arguments,1);
-  if(!hasServer())return APP_URL?apiFetch(name,args):Promise.reject(new Error('NO_SERVER'));
+  if(!hasServer())return API_URL?apiFetch(name,args):Promise.reject(new Error('NO_SERVER'));
   return new Promise(function(res,rej){
     google.script.run
       .withSuccessHandler(function(s){var r;try{r=JSON.parse(s)}catch(e){rej(new Error('Respuesta inválida del servidor.'));return}r.ok?res(r.data):rej(new Error(r.error))})
@@ -131,9 +133,9 @@ function confettiArt(){var cols=['#B2D5AD','#B6AAD1','#B9D5D1','#C6ECBB','#A69BC
 
 /* ---------- Pantallas ---------- */
 var V={};
-V.loading=function(){if(S.fatal==='NO_SERVER')return '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><b class="h2">Abre ReKonoce desde su link</b>'+
-  '<p class="lead">Este archivo solo funciona publicado en Google Apps Script. Abierto directo en el navegador no puede guardar votos.</p>'+
-  '<a class="btn" href="'+esc(APP_URL)+'" target="_top" style="max-width:260px;text-decoration:none">Abrir ReKonoce</a></div>';
+V.loading=function(){if(S.fatal==='NO_SERVER')return '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><b class="h2">Falta conectar el servidor</b>'+
+  '<p class="lead">Esta copia de ReKonoce no tiene configurado el link del servidor de Google (API_URL).</p>'+
+  '</div>';
  return S.fatal?'<div class="center-screen"><span class="wm">KIBERNUM</span><b class="h2">No pudimos cargar ReKonoce</b><p class="lead">'+esc(S.fatal)+'</p><button class="btn" data-a="retry" style="max-width:260px">Intentar de nuevo</button></div>':
   '<div class="center-screen"><span class="wm">KIBERNUM</span><span class="ray"></span><p class="lead">Cargando ReKonoce…</p></div>'};
 
@@ -303,7 +305,7 @@ V.admin=function(){var c=A.cycle,st=c.stage;var idx=-1;STAGES.forEach(function(s
   action+shareCard()+'</div>'};
 function shareCard(){return '<div class="card share"><span class="kicker">Link para el equipo</span><b class="h2" style="font-size:15px">Comparte ReKonoce</b>'+
   '<span class="small">Mándalo por WhatsApp, Teams o correo. En el teléfono se puede agregar a la pantalla de inicio.</span>'+
-  '<code class="url" id="appUrl">'+esc(APP_URL)+'</code><button class="btn sm" data-a="copyUrl">Copiar link</button><p class="small" id="urlMsg" role="status"></p></div>'}
+  '<code class="url" id="appUrl">'+esc(shareUrl())+'</code><button class="btn sm" data-a="copyUrl">Copiar link</button><p class="small" id="urlMsg" role="status"></p></div>'}
 
 V.adminPeople=function(){var st=A.cycle.stage;
  if(st==='idle')return '<div class="pad">'+head('Participación','No hay una votación abierta','')+'<p class="lead">Cuando abras la votación, aquí verás quién ya votó y quién falta.</p></div>';
@@ -463,7 +465,7 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'confirmSheet':confirmSheet();break;
   case 'filter':S.peopleFilter=t.getAttribute('data-f');render(true);break;
   case 'copyUrl':{var um=document.getElementById('urlMsg');var okU=function(){um.textContent='Link copiado.'};var noU=function(){um.textContent='Mantén presionado el link para copiarlo.';var r=document.createRange();r.selectNodeContents(document.getElementById('appUrl'));var sel=window.getSelection();sel.removeAllRanges();sel.addRange(r)};
-    try{navigator.clipboard.writeText(APP_URL).then(okU,noU)}catch(err){noU()}break}
+    try{navigator.clipboard.writeText(shareUrl()).then(okU,noU)}catch(err){noU()}break}
   case 'copyMissing':{var txt=A.participation.filter(function(x){return !x.ts}).map(function(x){return P(x.id).name}).join(', ');var msg=document.getElementById('copyMsg');
     var ok=function(){msg.textContent='Copiado: '+txt};var no=function(){msg.textContent=txt};try{navigator.clipboard.writeText(txt).then(ok,no)}catch(err){no()}break}
  }
