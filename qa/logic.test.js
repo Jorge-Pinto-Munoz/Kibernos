@@ -47,7 +47,7 @@ test('abrir nominación valida mes y fecha futura', () => {
   const s = t.ok('state', 'mv');
   assert.equal(s.cycle.stage, 'nominacion');
   assert.equal(s.cycle.month, 'Noviembre 2026');
-  assert.equal(s.activeCount, 18);
+  assert.equal(s.activeCount, 19);
   assert.equal(s.finalists, null, 'no hay finalistas durante la nominación');
   assert.match(t.bad('adminOpen', t.token, 'Diciembre 2026', t.now() + DAY), /etapa actual/);
 });

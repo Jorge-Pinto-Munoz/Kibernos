@@ -45,11 +45,11 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
     await ready(); assert.match(await text(), /PIN incorrecto/);
     for (const d of '5591') await page.click(`[data-k="${d}"]`);
   });
-  await step('el panel muestra participación 12/18 y quién falta', async () => {
-    assert.match(await text(), /12\s*\/18/);
+  await step('el panel muestra participación 12/19 y quién falta', async () => {
+    assert.match(await text(), /12\s*\/19/);
     await page.click('.tabs [data-s="adminPeople"]'); await ready();
     await page.click('[data-f="missing"]');
-    const t = await text(); assert.match(t, /6 personas aún no votan/); assert.doesNotMatch(t, /Manuel Orellana/);
+    const t = await text(); assert.match(t, /7 personas aún no votan/); assert.doesNotMatch(t, /Manuel Orellana/);
   });
   await step('el panel de votos no revela quién votó', async () => {
     await page.click('.tabs [data-s="adminVotes"]');

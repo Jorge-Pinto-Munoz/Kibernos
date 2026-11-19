@@ -38,6 +38,7 @@ var TEAM = [
   ['bp', 'Bernardita Pinochet', 'talent', '', true],
   ['gc', 'Gloria Caro', 'talent', '', true],
   ['fv', 'Francisca Venegas', 'talent', '', true],
+  ['nm', 'Nicole Marambio', 'talent', '', true],
   ['nb', 'Noelia Barrera', 'talent', 'Postnatal', false],
   ['rj', 'Rossana Jiménez', 'support', '', true],
   ['dm', 'Daniela Moreno', 'support', '', true],
