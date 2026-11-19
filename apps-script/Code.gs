@@ -12,9 +12,10 @@
 var SHEETS = {
   config: ['clave', 'valor'],
   personas: ['id', 'nombre', 'area', 'nota', 'activo'],
-  participacion: ['ciclo', 'etapa', 'persona', 'fecha'],
-  nominaciones: ['ciclo', 'pilar', 'persona', 'motivo'],
-  historial: ['mes', 'ganadores']
+  // Las primeras columnas las usa la app; las de la derecha son para leer la Hoja (nombres completos)
+  participacion: ['ciclo', 'etapa', 'id', 'fecha_ms', 'votó (nombre)', 'fecha'],
+  nominaciones: ['ciclo', 'pilar', 'id', 'motivo', 'reconocido (nombre)', 'pilar (nombre)'],
+  historial: ['mes', 'ganadores_ids', 'ganadores']
 };
 var SHEET_TITLES = {
   config: 'Config', personas: 'Personas', participacion: 'Participacion',
@@ -66,22 +67,52 @@ function include(name) {
 }
 
 /** Endpoint único. Devuelve un string JSON: {ok, data} o {ok:false, error}. */
+var WRITES_ = ['vote', 'adminOpen', 'adminClose', 'adminReveal', 'adminExtend', 'adminArchive'];
 function rkApi(name, args) {
+  args = args || [];
+  // Lectura pública rápida: el estado es igual para todos; «me» se calcula aparte
+  if (name === 'state') {
+    var cache = CacheService.getScriptCache();
+    var hit = cache.get('rk_state');
+    if (hit) {
+      var st = JSON.parse(hit);
+      st.serverNow = Date.now();
+      st.me = meFor_(st, args[0]);
+      return JSON.stringify({ ok: true, data: st });
+    }
+    var res = JSON.parse(RK.handle(sheetStore_(), cacheAuth_(), 'state', [null], Date.now()));
+    if (res.ok) {
+      var raw = JSON.stringify(res.data);
+      if (raw.length < 95000) cache.put('rk_state', raw, 60);
+      res.data.me = meFor_(res.data, args[0]);
+    }
+    delete res.detail;
+    return JSON.stringify(res);
+  }
+  var write = WRITES_.indexOf(name) >= 0;
   var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(20000);
-  } catch (e) {
-    return JSON.stringify({ ok: false, error: 'Hay mucha gente votando al mismo tiempo. Intenta de nuevo en unos segundos.' });
+  if (write) {
+    try { lock.waitLock(20000); } catch (e) {
+      return JSON.stringify({ ok: false, error: 'Hay mucha gente votando al mismo tiempo. Intenta de nuevo en unos segundos.' });
+    }
   }
   try {
-    var res = RK.handle(sheetStore_(), cacheAuth_(), name, args, Date.now());
-    var parsed = JSON.parse(res);
+    var parsed = JSON.parse(RK.handle(sheetStore_(), cacheAuth_(), name, args, Date.now()));
     if (!parsed.ok && parsed.detail) console.error(parsed.detail);
     delete parsed.detail;
+    if (write && parsed.ok) CacheService.getScriptCache().remove('rk_state');
     return JSON.stringify(parsed);
   } finally {
-    lock.releaseLock();
+    if (write) lock.releaseLock();
   }
+}
+
+function meFor_(st, personId) {
+  if (!personId) return null;
+  for (var i = 0; i < st.people.length; i++) {
+    if (st.people[i].id === personId) return { id: personId, voted: (st.votedIds || []).indexOf(personId) >= 0 };
+  }
+  return null;
 }
 
 /* ---------- Configuración inicial ---------- */
@@ -90,11 +121,8 @@ function setup() {
   var ss = getSpreadsheet_(true);
   Object.keys(SHEETS).forEach(function (k) {
     var sh = ss.getSheetByName(SHEET_TITLES[k]) || ss.insertSheet(SHEET_TITLES[k]);
-    if (sh.getLastRow() === 0) {
-      sh.appendRow(SHEETS[k]);
-      sh.setFrozenRows(1);
-      sh.getRange(1, 1, 1, SHEETS[k].length).setFontWeight('bold');
-    }
+    sh.getRange(1, 1, 1, SHEETS[k].length).setValues([SHEETS[k]]).setFontWeight('bold');
+    sh.setFrozenRows(1);
   });
   var people = ss.getSheetByName(SHEET_TITLES.personas);
   if (people.getLastRow() === 1) {
@@ -102,10 +130,62 @@ function setup() {
   }
   var config = ss.getSheetByName(SHEET_TITLES.config);
   if (config.getLastRow() === 1) config.appendRow(['stage', JSON.stringify('idle')]);
+  fillNames_(ss);
   var blank = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0) ss.deleteSheet(blank);
   if (!props.getProperty('ADMIN_PIN')) props.setProperty('ADMIN_PIN', '5591');
   Logger.log('Listo. Hoja de datos: ' + ss.getUrl());
+}
+
+var PILLAR_LABELS_ = { colaboracion: 'Colaboración', responsabilidad: 'Responsabilidad', respeto: 'Respeto', comunicacion: 'Comunicación' };
+
+function namesById_(ss) {
+  var m = {};
+  var sh = ss.getSheetByName(SHEET_TITLES.personas);
+  var n = sh.getLastRow();
+  if (n > 1) sh.getRange(2, 1, n - 1, 2).getValues().forEach(function (r) { if (r[0]) m[String(r[0]).trim()] = String(r[1]).trim(); });
+  return m;
+}
+
+function winnersText_(winners, names) {
+  return Object.keys(PILLAR_LABELS_).map(function (pid) {
+    var ids = winners[pid] || [];
+    return PILLAR_LABELS_[pid] + ': ' + (ids.length ? ids.map(function (id) { return names[id] || id; }).join(' y ') : 'sin ganador');
+  }).join(' · ');
+}
+
+/** Completa los nombres completos en filas guardadas antes de que existieran esas columnas. */
+function fillNames_(ss) {
+  var names = namesById_(ss);
+  var fix = function (key, build) {
+    var sh = ss.getSheetByName(SHEET_TITLES[key]);
+    var n = sh.getLastRow();
+    if (n < 2) return;
+    var w = SHEETS[key].length;
+    var data = sh.getRange(2, 1, n - 1, w).getValues();
+    var changed = false;
+    data.forEach(function (r) { if (r[0] && build(r)) changed = true; });
+    if (changed) sh.getRange(2, 1, n - 1, w).setValues(data);
+  };
+  fix('participacion', function (r) {
+    if (r[4] && r[5]) return false;
+    r[4] = names[r[2]] || r[2];
+    r[5] = r[3] ? new Date(Number(r[3])) : '';
+    return true;
+  });
+  fix('nominaciones', function (r) {
+    if (r[4] || !r[2]) { if (!r[5] && r[1]) { r[5] = PILLAR_LABELS_[r[1]] || r[1]; return true; } return false; }
+    r[4] = names[r[2]] || r[2];
+    r[5] = PILLAR_LABELS_[r[1]] || r[1];
+    return true;
+  });
+  fix('historial', function (r) {
+    if (r[2]) return false;
+    var w = {};
+    try { w = JSON.parse(r[1]); } catch (e) { return false; }
+    r[2] = winnersText_(w, names);
+    return true;
+  });
 }
 
 function getSpreadsheet_(create) {
@@ -135,6 +215,8 @@ function sheetStore_() {
     return n < 2 ? [] : s.getRange(2, 1, n - 1, SHEETS[k].length).getValues();
   };
   var cfgCache = null;
+  var namesCache = null;
+  var names = function () { return namesCache || (namesCache = namesById_(ss)); };
 
   return {
     getAdminPin: function () {
@@ -175,7 +257,7 @@ function sheetStore_() {
         .map(function (r) { return { stage: r[1], person: r[2], ts: Number(r[3]) }; });
     },
     addParticipation: function (cycle, stage, person, ts) {
-      sh('participacion').appendRow([cycle, stage, person, ts]);
+      sh('participacion').appendRow([cycle, stage, person, ts, names()[person] || person, new Date(ts)]);
     },
     getBallots: function (kind, cycle) {
       return rows('nominaciones').filter(function (r) { return r[0] === cycle; }).map(function (r) {
@@ -186,7 +268,7 @@ function sheetStore_() {
     addBallots: function (kind, cycle, list) {
       var s = sh('nominaciones');
       list.forEach(function (b) {
-        var row = [cycle, b.pillar, b.nominee, b.reason];
+        var row = [cycle, b.pillar, b.nominee, b.reason, b.nominee ? (names()[b.nominee] || b.nominee) : '(sin voto)', PILLAR_LABELS_[b.pillar] || b.pillar];
         var last = s.getLastRow();
         var after = 1 + Math.floor(Math.random() * last);
         if (after > last) after = last;
@@ -202,7 +284,7 @@ function sheetStore_() {
       }).reverse();
     },
     addHistory: function (entry) {
-      sh('historial').appendRow([entry.month, JSON.stringify(entry.winners)]);
+      sh('historial').appendRow([entry.month, JSON.stringify(entry.winners), winnersText_(entry.winners, names())]);
     }
   };
 }

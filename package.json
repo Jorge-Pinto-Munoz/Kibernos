@@ -3,7 +3,7 @@
   "private": true,
   "description": "Rekonoce · Kiber Champions. Web app en Google Apps Script.",
   "scripts": {
-    "test": "node --test qa/logic.test.js",
+    "test": "node scripts/build-dist.js && node --test qa/logic.test.js qa/gas.test.js",
     "qa:ui": "node qa/build-harness.js && node qa/ui-qa.js",
     "qa:e2e": "node qa/build-harness.js && node qa/e2e.js",
     "qa": "npm test && npm run qa:ui && npm run qa:e2e"

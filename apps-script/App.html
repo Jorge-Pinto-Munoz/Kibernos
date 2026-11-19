@@ -405,6 +405,13 @@ function confetti(n){if(reduce)return;var cv=document.getElementById('confetti')
 function go(s){S.stack.push(s);render()}
 function root(s){S.stack=[s];render()}
 function refresh(){return api('state',S.who).then(function(g){setG(g)})}
+function typing(){var a=document.activeElement;return !!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}
+/* Cambia de pantalla al instante con los datos que ya hay y los actualiza en segundo plano */
+function bgRefresh(screens){var bar=document.getElementById('busy');if(bar)bar.hidden=false;
+ var p=S.token&&screens.indexOf('admin')>=0?api('admin',S.token).then(function(x){setA(x)}):refresh();
+ p.then(function(){if(bar&&!S.busy)bar.hidden=true;if(screens.indexOf(cur())>=0&&!typing()&&!S.sheet)render(true)})
+  .catch(function(){if(bar&&!S.busy)bar.hidden=true})}
+function meFrom(id){return {id:id,voted:(G.votedIds||[]).indexOf(id)>=0}}
 function enterAs(id){S.who=id;sset('rk-who',id);loadDraft();root('home')}
 document.getElementById('app').addEventListener('click',function(e){
  var t=e.target.closest('[data-a]');if(!t||t.disabled||S.busy)return;
@@ -413,14 +420,13 @@ document.getElementById('app').addEventListener('click',function(e){
  switch(a){
   case 'retry':S.fatal=null;render();boot();break;
   case 'who':S.pending=t.getAttribute('data-id');S.q='';go('disclaimer');break;
-  case 'accept':run(api('state',S.pending),function(g){setG(g);enterAs(S.pending)});break;
-  case 'switch':S.who=null;sset('rk-who',null);S.q='';run(refresh(),function(){root('login')});break;
+  case 'accept':G.me=meFrom(S.pending);enterAs(S.pending);bgRefresh(['home']);break;
+  case 'switch':S.who=null;sset('rk-who',null);S.q='';G.me=null;root('login');bgRefresh(['login']);break;
   case 'back':S.stack.pop();if(!S.stack.length)S.stack=[S.token?'admin':S.who?'home':'login'];S.pin='';S.pinErr='';render();break;
   case 'tab':{var s=t.getAttribute('data-s');
-    if(s==='logout'){S.token=null;sset('rk-token',null,'s');S.pin='';run(refresh(),function(){root(S.who&&G.me?'home':'login')});break}
-    if(S.token){run(api('admin',S.token),function(x){setA(x);root(s)});break}
-    if(G&&S.who){run(refresh(),function(){root(s)});break}
-    root(s);break}
+    if(s==='logout'){S.token=null;sset('rk-token',null,'s');S.pin='';var nx=S.who&&G.me?'home':'login';root(nx);bgRefresh([nx]);break}
+    if(S.token){root(s);bgRefresh(['admin','adminPeople','adminVotes']);break}
+    root(s);if(G&&S.who)bgRefresh([s]);break}
   case 'toPin':S.pin='';S.pinErr='';go('pin');break;
   case 'pillar':S.cur=pid;go('pillar');break;
   case 'nominate':{if(stage()!=='votacion'||G.me.voted||expired())return;S.cur=pid;var n=S.draft[pid];S.tmp=n&&!n.skip?{nominee:n.nominee,reason:n.reason}:{nominee:null,reason:''};S.q='';go('choose');break}
@@ -432,8 +438,8 @@ document.getElementById('app').addEventListener('click',function(e){
     S.flash={msg:'Elegiste a '+P(S.tmp.nominee).name+' en '+PL(S.cur).name+'.'+(np?' Te falta '+np.name+'.':' Ya puedes revisar y enviar.')};root('home');break}
   case 'review':go('review');break;
   case 'sendNom':run(api('vote',S.who,S.draft),function(g){setG(g);S.draft={};saveDraft();S.flash={msg:'Voto enviado. ¡Gracias por reconocer!'};root('home')});break;
-  case 'startReveal':run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
-  case 'adminReveal':run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
+  case 'startReveal':if(G&&G.winners){S.reveal={i:0,phase:'count'};go('reveal');break}run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
+  case 'adminReveal':if(G&&G.winners&&stage()==='revelado'){S.reveal={i:0,phase:'count'};go('reveal');break}run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'recog':S.cur=pid;S.rid=t.getAttribute('data-id');go('recog');break;
   case 'allRecog':go('allRecog');break;
   case 'nextReveal':S.reveal={i:S.reveal.i+1,phase:'count'};render();break;

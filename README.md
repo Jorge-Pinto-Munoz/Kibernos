@@ -38,6 +38,18 @@ Alternativa con terminal: `npx @google/clasp login`, luego `npx @google/clasp cr
 
 **Al cambiar el código:** Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión. La URL se mantiene.
 
+## Qué guarda cada pestaña
+
+Las primeras columnas las usa la app (ids cortos como `rm`); las de la derecha son para leer la Hoja con nombres completos.
+
+| Pestaña | Columnas para leer |
+|---|---|
+| `Participacion` | **votó (nombre)** y **fecha**: quién votó y cuándo |
+| `Nominaciones` | **reconocido (nombre)**, **pilar (nombre)** y el motivo. Nunca guarda quién escribió cada voto |
+| `Historial` | **ganadores**: «Colaboración: … · Responsabilidad: … · …» |
+
+Si la Hoja se creó con una versión anterior, vuelve a ejecutar `setup`: agrega los encabezados nuevos y completa los nombres de las filas existentes.
+
 ## Ajustes del día a día
 
 - **Equipo:** pestaña `Personas`. La columna `activo` en `FALSE` deja a la persona fuera de votar y de ser nominada (hoy Noelia Barrera y Sofía Calderón, por postnatal; votan 18 de 20 personas). Para sumar a alguien agrega una fila con un `id` único.
@@ -58,7 +70,7 @@ npm install && npx playwright install chromium
 npm run qa
 ```
 
-- `npm test`: 9 pruebas de lógica (PIN y bloqueo, fecha límite y extensión, autovoto, motivos, ✓ de quién votó, ganador y pin compartido, anonimato, orden de etapas).
+- `npm test`: 3 pruebas del `Code.gs` real sobre una simulación de Google Sheets (pestañas, nombres completos, caché) y 9 pruebas de lógica (PIN y bloqueo, fecha límite y extensión, autovoto, motivos, ✓ de quién votó, ganador y pin compartido, anonimato, orden de etapas).
 - `npm run qa:ui`: revisa 47 pantallas y estados en 5 anchos (320, 360, 390, 430 y 1280 px). Busca elementos que se salen de su contenedor o del teléfono, pines fuera de su círculo, solapes, texto recortado, imágenes rotas, botones de menos de 44 px, contraste bajo AA y errores de consola. Deja capturas en `qa/screens/` y el informe en `qa/REPORT.md`.
 - `npm run qa:e2e`: recorrido completo a clics, del ingreso a la revelación y el cierre del mes.
 
