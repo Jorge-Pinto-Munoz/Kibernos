@@ -4,7 +4,7 @@
   function makeMemStore(team, pin) {
     var db = {
       config: { stage: 'idle' },
-      people: team.map(function (r) { return { id: r[0], name: r[1], area: r[2], note: r[3], active: r[4] }; }),
+      people: team.map(function (r) { return { id: r[0], name: r[1], area: r[2], note: r[3], active: r[4], leader: !!r[5] }; }),
       part: [], nom: [], fin: [], hist: []
     };
     return {
@@ -15,11 +15,11 @@
       getPeople: function () { return clone(db.people); },
       getParticipation: function (c) { return db.part.filter(function (r) { return r.cycle === c; }).map(function (r) { return { stage: r.stage, person: r.person, ts: r.ts }; }); },
       addParticipation: function (c, s, p, ts) { db.part.push({ cycle: c, stage: s, person: p, ts: ts }); },
-      getBallots: function (k, c) { return db[k].filter(function (b) { return b.cycle === c; }).map(function (b) { return { pillar: b.pillar, nominee: b.nominee, reason: k === 'nom' ? b.reason : '' }; }); },
+      getBallots: function (k, c) { return db[k].filter(function (b) { return b.cycle === c; }).map(function (b) { return { pillar: b.pillar, nominee: b.nominee, reason: k === 'nom' ? b.reason : '', leader: !!b.leader }; }); },
       addBallots: function (k, c, list) {
         list.forEach(function (b) {
           var row = { cycle: c, pillar: b.pillar, nominee: b.nominee };
-          if (k === 'nom') row.reason = b.reason;
+          if (k === 'nom') { row.reason = b.reason; row.leader = !!b.leader; }
           db[k].splice(Math.floor(Math.random() * (db[k].length + 1)), 0, row);
         });
       },

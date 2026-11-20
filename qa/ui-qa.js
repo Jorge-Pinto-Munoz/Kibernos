@@ -48,6 +48,7 @@ const SCREENS = [
   ['revelacion-resumen', 'revelado|mo', seq(click('[data-a="startReveal"]'), ui(`(()=>{const S=__rk.S;S.reveal={i:4,phase:'show'};__rk.render()})()`))],
   ['ganadores', 'historia|mo', click('[data-s="winners"]')],
   ['ganadores-mes-actual', 'revelado|mo', click('.tabs [data-s="winners"]')],
+  ['ganadores-con-mi-voto', 'nom|rm', seq(ui(`localStorage.setItem('rk-myvote-rm', JSON.stringify({month:'Noviembre 2026',draft:{colaboracion:{nominee:'et',reason:'Cubrió dos procesos de selección sin dejar caer ninguno y además nos explicó cómo.'},responsabilidad:{nominee:'vc',reason:'Cerró la entrega del viernes y dejó todo documentado para el lunes.'},respeto:{skip:true},comunicacion:{nominee:'bb',reason:'Mandó un resumen cada hora durante la caída del ambiente.'}}}))`), click('.tabs [data-s="winners"]'))],
   ['mensajes-de-un-ganador', 'revelado|mo', seq(click('.tabs [data-s="winners"]'), click('[data-a="recog"]'))],
   ['todos-los-reconocidos', 'revelado|mo', seq(click('.tabs [data-s="winners"]'), click('[data-a="allRecog"]'))],
   ['mensajes-de-un-reconocido', 'revelado|mo', seq(click('.tabs [data-s="winners"]'), click('[data-a="allRecog"]'), click('.person[data-a="recog"]:last-of-type'))],

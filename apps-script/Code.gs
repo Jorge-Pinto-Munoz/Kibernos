@@ -11,10 +11,10 @@
 
 var SHEETS = {
   config: ['clave', 'valor'],
-  personas: ['id', 'nombre', 'area', 'nota', 'activo'],
+  personas: ['id', 'nombre', 'area', 'nota', 'activo', 'lider'],
   // Las primeras columnas las usa la app; las de la derecha son para leer la Hoja (nombres completos)
   participacion: ['ciclo', 'etapa', 'id', 'fecha_ms', 'votó (nombre)', 'fecha'],
-  nominaciones: ['ciclo', 'pilar', 'id', 'motivo', 'reconocido (nombre)', 'pilar (nombre)'],
+  nominaciones: ['ciclo', 'pilar', 'id', 'motivo', 'reconocido (nombre)', 'pilar (nombre)', 'voto de líder'],
   historial: ['mes', 'ganadores_ids', 'ganadores']
 };
 var SHEET_TITLES = {
@@ -23,26 +23,26 @@ var SHEET_TITLES = {
 };
 
 var TEAM = [
-  ['mv', 'Mariela Villanueva', 'delivery', '', true],
-  ['rm', 'Rodolfo Montoya', 'delivery', '', true],
-  ['bb', 'Bruno Bergamín', 'delivery', '', true],
-  ['mb', 'Mariela de la Barra', 'delivery', '', true],
-  ['vc', 'Vanessa Carrillo', 'delivery', '', true],
-  ['na', 'Nathaly Amigo', 'delivery', '', true],
-  ['mo', 'Manuel Orellana', 'delivery', '', true],
-  ['jp', 'Jorge Pinto', 'delivery', 'Service Manager', true],
-  ['mc', 'Margarita Cerda', 'talent', 'Talent Acquisition Lead', true],
-  ['mr', 'Marcia Rodríguez', 'talent', '', true],
-  ['et', 'Estefanía Toledo', 'talent', '', true],
-  ['pr', 'Paula Rojas', 'talent', '', true],
-  ['bp', 'Bernardita Pinochet', 'talent', '', true],
-  ['gc', 'Gloria Caro', 'talent', '', true],
-  ['fv', 'Francisca Venegas', 'talent', '', true],
-  ['nm', 'Nicole Marambio', 'talent', '', true],
-  ['nb', 'Noelia Barrera', 'talent', 'Postnatal', false],
-  ['rj', 'Rossana Jiménez', 'support', '', true],
-  ['dm', 'Daniela Moreno', 'support', '', true],
-  ['sc', 'Sofía Calderón', 'support', 'Postnatal', false]
+  ['mv', 'Mariela Villanueva', 'delivery', '', true, false],
+  ['rm', 'Rodolfo Montoya', 'delivery', '', true, false],
+  ['bb', 'Bruno Bergamín', 'delivery', '', true, false],
+  ['mb', 'Mariela de la Barra', 'delivery', '', true, false],
+  ['vc', 'Vanessa Carrillo', 'delivery', '', true, false],
+  ['na', 'Nathaly Amigo', 'delivery', '', true, false],
+  ['mo', 'Manuel Orellana', 'delivery', '', true, false],
+  ['jp', 'Jorge Pinto', 'delivery', 'Service Manager', true, true],
+  ['mc', 'Margarita Cerda', 'talent', 'Talent Acquisition Lead', true, true],
+  ['mr', 'Marcia Rodríguez', 'talent', '', true, false],
+  ['et', 'Estefanía Toledo', 'talent', '', true, false],
+  ['pr', 'Paula Rojas', 'talent', '', true, false],
+  ['bp', 'Bernardita Pinochet', 'talent', '', true, false],
+  ['gc', 'Gloria Caro', 'talent', '', true, false],
+  ['fv', 'Francisca Venegas', 'talent', '', true, false],
+  ['nm', 'Nicole Marambio', 'talent', '', true, false],
+  ['nb', 'Noelia Barrera', 'talent', 'Postnatal', false, false],
+  ['rj', 'Rossana Jiménez', 'support', '', true, false],
+  ['dm', 'Daniela Moreno', 'support', '', true, false],
+  ['sc', 'Sofía Calderón', 'support', 'Postnatal', false, false]
 ];
 
 /* ---------- Servidor de datos (la app vive en Netlify) ---------- */
@@ -129,7 +129,7 @@ function setup() {
   });
   var people = ss.getSheetByName(SHEET_TITLES.personas);
   if (people.getLastRow() === 1) {
-    people.getRange(2, 1, TEAM.length, 5).setValues(TEAM);
+    people.getRange(2, 1, TEAM.length, 6).setValues(TEAM);
   }
   var config = ss.getSheetByName(SHEET_TITLES.config);
   if (config.getLastRow() === 1) config.appendRow(['stage', JSON.stringify('idle')]);
@@ -139,6 +139,19 @@ function setup() {
   if (!props.getProperty('ADMIN_PIN')) props.setProperty('ADMIN_PIN', '5591');
   Logger.log('Listo. Hoja de datos: ' + ss.getUrl());
 }
+
+var MONTHS_ = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+/** Google Sheets convierte «Noviembre 2026» en fecha: se vuelve a texto al leer. */
+function monthText_(v) {
+  if (v instanceof Date && !isNaN(v)) return MONTHS_[v.getMonth()] + ' ' + v.getFullYear();
+  var s = String(v || '').replace(/^'/, '').trim();
+  var iso = s.match(/^(\d{4})-(\d{2})-\d{2}T/);
+  if (iso) { var d = new Date(s); return MONTHS_[d.getMonth()] + ' ' + d.getFullYear(); }
+  return s;
+}
+
+/** Líderes por defecto: sus votos desempatan. Se puede cambiar en la pestaña Personas (columna lider). */
+var LEADERS_ = ['jp', 'mc'];
 
 var PILLAR_LABELS_ = { colaboracion: 'Colaboración', responsabilidad: 'Responsabilidad', respeto: 'Respeto', comunicacion: 'Comunicación' };
 
@@ -170,6 +183,11 @@ function fillNames_(ss) {
     data.forEach(function (r) { if (r[0] && build(r)) changed = true; });
     if (changed) sh.getRange(2, 1, n - 1, w).setValues(data);
   };
+  fix('personas', function (r) {
+    if (r[5] === true || r[5] === false || String(r[5]).trim() !== '') return false;
+    r[5] = LEADERS_.indexOf(String(r[0]).trim()) >= 0;
+    return true;
+  });
   fix('participacion', function (r) {
     if (r[4] && r[5]) return false;
     r[4] = names[r[2]] || r[2];
@@ -183,6 +201,7 @@ function fillNames_(ss) {
     return true;
   });
   fix('historial', function (r) {
+    if (r[0] instanceof Date) { r[0] = "'" + monthText_(r[0]); if (r[2]) return true; }
     if (r[2]) return false;
     var w = {};
     try { w = JSON.parse(r[1]); } catch (e) { return false; }
@@ -251,7 +270,8 @@ function sheetStore_() {
       return rows('personas').filter(function (r) { return r[0]; }).map(function (r) {
         return {
           id: String(r[0]).trim(), name: String(r[1]).trim(), area: String(r[2]).trim(),
-          note: String(r[3] || '').trim(), active: r[4] === true || String(r[4]).toUpperCase() === 'TRUE'
+          note: String(r[3] || '').trim(), active: r[4] === true || String(r[4]).toUpperCase() === 'TRUE',
+          leader: r[5] === true || String(r[5]).toUpperCase() === 'TRUE'
         };
       });
     },
@@ -264,14 +284,14 @@ function sheetStore_() {
     },
     getBallots: function (kind, cycle) {
       return rows('nominaciones').filter(function (r) { return r[0] === cycle; }).map(function (r) {
-        return { pillar: r[1], nominee: String(r[2] || ''), reason: String(r[3] || '') };
+        return { pillar: r[1], nominee: String(r[2] || ''), reason: String(r[3] || ''), leader: r[6] === true || String(r[6]).toUpperCase() === 'TRUE' };
       });
     },
     /** Inserta cada papeleta en una fila al azar para que el orden no delate quién votó. */
     addBallots: function (kind, cycle, list) {
       var s = sh('nominaciones');
       list.forEach(function (b) {
-        var row = [cycle, b.pillar, b.nominee, b.reason, b.nominee ? (names()[b.nominee] || b.nominee) : '(sin voto)', PILLAR_LABELS_[b.pillar] || b.pillar];
+        var row = [cycle, b.pillar, b.nominee, b.reason, b.nominee ? (names()[b.nominee] || b.nominee) : '(sin voto)', PILLAR_LABELS_[b.pillar] || b.pillar, !!b.leader];
         var last = s.getLastRow();
         var after = 1 + Math.floor(Math.random() * last);
         if (after > last) after = last;
@@ -283,11 +303,12 @@ function sheetStore_() {
       return rows('historial').map(function (r) {
         var w = {};
         try { w = JSON.parse(r[1]); } catch (e) { }
-        return { month: r[0], winners: w };
+        return { month: monthText_(r[0]), winners: w };
       }).reverse();
     },
     addHistory: function (entry) {
-      sh('historial').appendRow([entry.month, JSON.stringify(entry.winners), winnersText_(entry.winners, names())]);
+      // El apóstrofo obliga a Sheets a guardarlo como texto (no lo muestra)
+      sh('historial').appendRow(["'" + entry.month, JSON.stringify(entry.winners), winnersText_(entry.winners, names())]);
     }
   };
 }

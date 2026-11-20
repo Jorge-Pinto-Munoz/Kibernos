@@ -54,6 +54,11 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
     await page.click('[data-a="review"]'); await page.click('[data-a="sendNom"]');
     const t = await text(); assert.match(t, /Tu voto quedó registrado/); assert.doesNotMatch(t, /Cierra en/);
   });
+  await step('en Ganadores ve su propio voto (solo en su teléfono) y no hay ganadores aún', async () => {
+    await page.click('.tabs [data-s="winners"]'); const t = await text();
+    assert.match(t, /Tu voto de noviembre/i); assert.match(t, /Nadie más puede ver por quién votaste/);
+    await page.click('.tabs [data-s="home"]'); await ready();
+  });
   await step('al volver, Manuel aparece con ✓ en la lista', async () => {
     await page.click('[data-a="switch"]'); await ready();
     assert.equal(await page.locator('[data-id="mo"] .tick').count(), 1);

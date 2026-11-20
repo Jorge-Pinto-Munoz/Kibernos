@@ -7,7 +7,8 @@
  *
  * Un mes = una votación: el admin la abre, cada persona vota una vez (una persona
  * por pilar, con motivo) y al cerrar gana quien tiene más votos en cada pilar.
- * Empate en el primer lugar = pin compartido.
+ * Empate en el primer lugar: desempatan los votos de líderes (Personas → lider).
+ * Si los líderes también empatan, el pin es compartido.
  *
  * Anonimato: la participación (quién votó) y las papeletas (por quién se votó)
  * se guardan en tablas separadas. Las papeletas no llevan nombre ni hora.
@@ -54,14 +55,25 @@ var RK = (function () {
       });
   }
 
-  /** Ganador por pilar: quien tiene más votos. Si hay empate en el primer lugar, el pin es compartido. */
+  /** Ganador por pilar: más votos. Empate: gana quien tenga más votos de líderes. Si sigue empatado, pin compartido. */
   function computeWinners(ballots, people) {
     var idx = peopleIndex(people);
     var out = {};
     PILLARS.forEach(function (pid) {
       var t = tally(ballots, pid, idx).filter(function (x) { return idx[x.id] && idx[x.id].active; });
       var top = t.length ? t.filter(function (x) { return x.votes === t[0].votes; }) : [];
-      out[pid] = { winners: top.map(function (x) { return x.id; }), votes: top.length ? top[0].votes : 0 };
+      var byLeaders = false;
+      if (top.length > 1) {
+        var lv = {};
+        ballots.forEach(function (b) { if (b.pillar === pid && b.leader && b.nominee) lv[b.nominee] = (lv[b.nominee] || 0) + 1; });
+        var best = Math.max.apply(null, top.map(function (x) { return lv[x.id] || 0; }));
+        if (best > 0) {
+          var narrowed = top.filter(function (x) { return (lv[x.id] || 0) === best; });
+          byLeaders = narrowed.length < top.length;
+          top = narrowed;
+        }
+      }
+      out[pid] = { winners: top.map(function (x) { return x.id; }), votes: top.length ? top[0].votes : 0, byLeaders: byLeaders };
     });
     return out;
   }
@@ -98,7 +110,7 @@ var RK = (function () {
     var st = cfg.stage || 'idle';
     var state = {
       serverNow: now,
-      people: people.map(function (p) { return { id: p.id, name: p.name, area: p.area, note: p.note, active: p.active }; }),
+      people: people.map(function (p) { return { id: p.id, name: p.name, area: p.area, note: p.note, active: p.active, leader: !!p.leader }; }),
       cycle: { month: cfg.month || '', stage: st, deadline: cfg.deadline || null },
       activeCount: active.length,
       // Quién ya votó (nunca por quién): se muestra con un ✓ junto a su nombre
@@ -117,7 +129,7 @@ var RK = (function () {
         var w = cfg.winners[pid] || { winners: [], votes: 0 };
         var reasons = [];
         w.winners.forEach(function (id) { reasons = reasons.concat(reasonsFor(ballots, pid, id)); });
-        state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons };
+        state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons, byLeaders: !!w.byLeaders };
       });
       // Todas las personas que recibieron votos, con lo que les escribieron (nunca quién)
       state.recognitions = {};
@@ -145,14 +157,14 @@ var RK = (function () {
     PILLARS.forEach(function (pid) {
       var n = noms[pid];
       if (!n) fail('Falta tu voto en ' + PILLAR_NAMES[pid] + '.');
-      if (n.skip) { rows.push({ pillar: pid, nominee: '', reason: '' }); return; }
+      if (n.skip) { rows.push({ pillar: pid, nominee: '', reason: '', leader: !!me.leader }); return; }
       var target = idx[n.nominee];
       if (!target || !target.active) fail('La persona elegida en ' + PILLAR_NAMES[pid] + ' no está disponible.');
       if (n.nominee === personId) fail('No puedes votar por ti.');
       var reason = String(n.reason || '').replace(/\s+/g, ' ').trim();
       if (reason.length < MIN_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' necesita al menos ' + MIN_REASON + ' caracteres.');
       if (reason.length > MAX_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' supera los ' + MAX_REASON + ' caracteres.');
-      rows.push({ pillar: pid, nominee: n.nominee, reason: reason });
+      rows.push({ pillar: pid, nominee: n.nominee, reason: reason, leader: !!me.leader });
     });
     store.addBallots('nom', cfg.cycleId, rows);
     store.addParticipation(cfg.cycleId, 'vot', personId, now);

@@ -89,7 +89,7 @@ test('no se puede votar después del plazo; extenderlo lo permite', () => {
 test('anonimato: las papeletas no guardan quién votó', () => {
   const t = setup(); open(t);
   t.ok('vote', 'mv', votes({ colaboracion: 'rm' }));
-  for (const b of t.store.db.nom) assert.deepEqual(Object.keys(b).sort(), ['cycle', 'nominee', 'pillar', 'reason']);
+  for (const b of t.store.db.nom) assert.deepEqual(Object.keys(b).sort(), ['cycle', 'leader', 'nominee', 'pillar', 'reason']);
   const a = t.ok('admin', t.token);
   assert.ok(!JSON.stringify(a.tally).includes('"mv"'), 'el conteo no menciona a quien votó');
   assert.ok(a.participation.find(p => p.id === 'mv').ts > 0, 'sí registra que participó');
@@ -150,4 +150,22 @@ test('el orden de las etapas no se puede saltar', () => {
   open(t);
   assert.match(t.bad('adminReveal', t.token), /etapa actual/);
   assert.match(t.bad('adminArchive', t.token), /etapa actual/);
+});
+
+test('empate: desempatan los votos de líderes (Jorge y Margarita); si también empatan, pin compartido', () => {
+  const t = setup(); open(t);
+  // Colaboración: rm 2 (uno de Jorge) vs et 2 -> gana rm por voto de líder
+  // Respeto: na 1 (Margarita) vs sc? no: na 1 (Margarita) vs bp 1 (Jorge) -> líderes empatados -> compartido
+  t.ok('vote', 'jp', votes({ colaboracion: 'rm', respeto: 'bp' }));
+  t.ok('vote', 'mc', votes({ respeto: 'na' }));
+  t.ok('vote', 'bb', votes({ colaboracion: 'rm' }));
+  t.ok('vote', 'mo', votes({ colaboracion: 'et' }));
+  t.ok('vote', 'pr', votes({ colaboracion: 'et' }));
+  assert.equal(t.store.db.nom.filter(b => b.leader).length, 8, 'los 4 votos de cada líder quedan marcados');
+  assert.ok(t.store.db.nom.every(b => !('voter' in b)), 'sin nombre de quien votó');
+  t.ok('adminClose', t.token); t.ok('adminReveal', t.token);
+  const w = t.ok('state', null).winners;
+  assert.deepEqual(w.colaboracion.ids, ['rm']); assert.equal(w.colaboracion.byLeaders, true);
+  assert.deepEqual(w.respeto.ids.sort(), ['bp', 'na']); assert.equal(w.respeto.byLeaders, false);
+  assert.equal(t.ok('state', null).people.find(p => p.id === 'jp').leader, true);
 });

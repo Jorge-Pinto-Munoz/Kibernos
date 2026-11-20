@@ -164,6 +164,8 @@ button.wrow{width:100%;text-align:left;min-height:60px}
 
 .share .url{display:block;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
 
+.card.myvote{background:var(--bg);gap:12px}
+
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
 .cd .lbl{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;font-size:12px;color:var(--ink-3)}
@@ -285,7 +287,7 @@ canvas.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:
   function makeMemStore(team, pin) {
     var db = {
       config: { stage: 'idle' },
-      people: team.map(function (r) { return { id: r[0], name: r[1], area: r[2], note: r[3], active: r[4] }; }),
+      people: team.map(function (r) { return { id: r[0], name: r[1], area: r[2], note: r[3], active: r[4], leader: !!r[5] }; }),
       part: [], nom: [], fin: [], hist: []
     };
     return {
@@ -296,11 +298,11 @@ canvas.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:
       getPeople: function () { return clone(db.people); },
       getParticipation: function (c) { return db.part.filter(function (r) { return r.cycle === c; }).map(function (r) { return { stage: r.stage, person: r.person, ts: r.ts }; }); },
       addParticipation: function (c, s, p, ts) { db.part.push({ cycle: c, stage: s, person: p, ts: ts }); },
-      getBallots: function (k, c) { return db[k].filter(function (b) { return b.cycle === c; }).map(function (b) { return { pillar: b.pillar, nominee: b.nominee, reason: k === 'nom' ? b.reason : '' }; }); },
+      getBallots: function (k, c) { return db[k].filter(function (b) { return b.cycle === c; }).map(function (b) { return { pillar: b.pillar, nominee: b.nominee, reason: k === 'nom' ? b.reason : '', leader: !!b.leader }; }); },
       addBallots: function (k, c, list) {
         list.forEach(function (b) {
           var row = { cycle: c, pillar: b.pillar, nominee: b.nominee };
-          if (k === 'nom') row.reason = b.reason;
+          if (k === 'nom') { row.reason = b.reason; row.leader = !!b.leader; }
           db[k].splice(Math.floor(Math.random() * (db[k].length + 1)), 0, row);
         });
       },
@@ -331,7 +333,8 @@ canvas.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:
  *
  * Un mes = una votación: el admin la abre, cada persona vota una vez (una persona
  * por pilar, con motivo) y al cerrar gana quien tiene más votos en cada pilar.
- * Empate en el primer lugar = pin compartido.
+ * Empate en el primer lugar: desempatan los votos de líderes (Personas → lider).
+ * Si los líderes también empatan, el pin es compartido.
  *
  * Anonimato: la participación (quién votó) y las papeletas (por quién se votó)
  * se guardan en tablas separadas. Las papeletas no llevan nombre ni hora.
@@ -378,14 +381,25 @@ var RK = (function () {
       });
   }
 
-  /** Ganador por pilar: quien tiene más votos. Si hay empate en el primer lugar, el pin es compartido. */
+  /** Ganador por pilar: más votos. Empate: gana quien tenga más votos de líderes. Si sigue empatado, pin compartido. */
   function computeWinners(ballots, people) {
     var idx = peopleIndex(people);
     var out = {};
     PILLARS.forEach(function (pid) {
       var t = tally(ballots, pid, idx).filter(function (x) { return idx[x.id] && idx[x.id].active; });
       var top = t.length ? t.filter(function (x) { return x.votes === t[0].votes; }) : [];
-      out[pid] = { winners: top.map(function (x) { return x.id; }), votes: top.length ? top[0].votes : 0 };
+      var byLeaders = false;
+      if (top.length > 1) {
+        var lv = {};
+        ballots.forEach(function (b) { if (b.pillar === pid && b.leader && b.nominee) lv[b.nominee] = (lv[b.nominee] || 0) + 1; });
+        var best = Math.max.apply(null, top.map(function (x) { return lv[x.id] || 0; }));
+        if (best > 0) {
+          var narrowed = top.filter(function (x) { return (lv[x.id] || 0) === best; });
+          byLeaders = narrowed.length < top.length;
+          top = narrowed;
+        }
+      }
+      out[pid] = { winners: top.map(function (x) { return x.id; }), votes: top.length ? top[0].votes : 0, byLeaders: byLeaders };
     });
     return out;
   }
@@ -422,7 +436,7 @@ var RK = (function () {
     var st = cfg.stage || 'idle';
     var state = {
       serverNow: now,
-      people: people.map(function (p) { return { id: p.id, name: p.name, area: p.area, note: p.note, active: p.active }; }),
+      people: people.map(function (p) { return { id: p.id, name: p.name, area: p.area, note: p.note, active: p.active, leader: !!p.leader }; }),
       cycle: { month: cfg.month || '', stage: st, deadline: cfg.deadline || null },
       activeCount: active.length,
       // Quién ya votó (nunca por quién): se muestra con un ✓ junto a su nombre
@@ -441,7 +455,7 @@ var RK = (function () {
         var w = cfg.winners[pid] || { winners: [], votes: 0 };
         var reasons = [];
         w.winners.forEach(function (id) { reasons = reasons.concat(reasonsFor(ballots, pid, id)); });
-        state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons };
+        state.winners[pid] = { ids: w.winners, votes: w.votes, reasons: reasons, byLeaders: !!w.byLeaders };
       });
       // Todas las personas que recibieron votos, con lo que les escribieron (nunca quién)
       state.recognitions = {};
@@ -469,14 +483,14 @@ var RK = (function () {
     PILLARS.forEach(function (pid) {
       var n = noms[pid];
       if (!n) fail('Falta tu voto en ' + PILLAR_NAMES[pid] + '.');
-      if (n.skip) { rows.push({ pillar: pid, nominee: '', reason: '' }); return; }
+      if (n.skip) { rows.push({ pillar: pid, nominee: '', reason: '', leader: !!me.leader }); return; }
       var target = idx[n.nominee];
       if (!target || !target.active) fail('La persona elegida en ' + PILLAR_NAMES[pid] + ' no está disponible.');
       if (n.nominee === personId) fail('No puedes votar por ti.');
       var reason = String(n.reason || '').replace(/\s+/g, ' ').trim();
       if (reason.length < MIN_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' necesita al menos ' + MIN_REASON + ' caracteres.');
       if (reason.length > MAX_REASON) fail('El motivo en ' + PILLAR_NAMES[pid] + ' supera los ' + MAX_REASON + ' caracteres.');
-      rows.push({ pillar: pid, nominee: n.nominee, reason: reason });
+      rows.push({ pillar: pid, nominee: n.nominee, reason: reason, leader: !!me.leader });
     });
     store.addBallots('nom', cfg.cycleId, rows);
     store.addParticipation(cfg.cycleId, 'vot', personId, now);
@@ -594,7 +608,7 @@ var RK = (function () {
 </script>
 <script>
 (function(){
-  var TEAM=[["mv","Mariela Villanueva","delivery","",true],["rm","Rodolfo Montoya","delivery","",true],["bb","Bruno Bergamín","delivery","",true],["mb","Mariela de la Barra","delivery","",true],["vc","Vanessa Carrillo","delivery","",true],["na","Nathaly Amigo","delivery","",true],["mo","Manuel Orellana","delivery","",true],["jp","Jorge Pinto","delivery","Service Manager",true],["mc","Margarita Cerda","talent","Talent Acquisition Lead",true],["mr","Marcia Rodríguez","talent","",true],["et","Estefanía Toledo","talent","",true],["pr","Paula Rojas","talent","",true],["bp","Bernardita Pinochet","talent","",true],["gc","Gloria Caro","talent","",true],["fv","Francisca Venegas","talent","",true],["nm","Nicole Marambio","talent","",true],["nb","Noelia Barrera","talent","Postnatal",false],["rj","Rossana Jiménez","support","",true],["dm","Daniela Moreno","support","",true],["sc","Sofía Calderón","support","Postnatal",false]];
+  var TEAM=[["mv","Mariela Villanueva","delivery","",true,false],["rm","Rodolfo Montoya","delivery","",true,false],["bb","Bruno Bergamín","delivery","",true,false],["mb","Mariela de la Barra","delivery","",true,false],["vc","Vanessa Carrillo","delivery","",true,false],["na","Nathaly Amigo","delivery","",true,false],["mo","Manuel Orellana","delivery","",true,false],["jp","Jorge Pinto","delivery","Service Manager",true,true],["mc","Margarita Cerda","talent","Talent Acquisition Lead",true,true],["mr","Marcia Rodríguez","talent","",true,false],["et","Estefanía Toledo","talent","",true,false],["pr","Paula Rojas","talent","",true,false],["bp","Bernardita Pinochet","talent","",true,false],["gc","Gloria Caro","talent","",true,false],["fv","Francisca Venegas","talent","",true,false],["nm","Nicole Marambio","talent","",true,false],["nb","Noelia Barrera","talent","Postnatal",false,false],["rj","Rossana Jiménez","support","",true,false],["dm","Daniela Moreno","support","",true,false],["sc","Sofía Calderón","support","Postnatal",false,false]];
   var REASONS=["Armó la guía de traspaso y la compartió con todo el equipo antes de que alguien la pidiera.","Cerró la entrega del viernes y dejó todo documentado para el lunes, sin que nadie se lo pidiera.","En la retro más difícil del año dejó hablar a todos y frenó las interrupciones con mucho tino.","Durante la caída del ambiente mandó un resumen cada hora y nadie quedó sin saber qué pasaba.","Se quedó una tarde completa ayudándome a ordenar los contratos del proyecto y me explicó todo."];
   var STORE=makeMemStore(TEAM,'5591'), AUTH=makeMemAuth();
   var clock=0; // desfase del reloj del servidor simulado
@@ -823,7 +837,7 @@ V.disclaimer=function(){var x=P(S.pending);return appbar()+'<div class="pad" sty
   head('Antes de votar','Hola, '+esc(first(x.name))+'. Tu voto es anónimo.','')+
   '<div class="list">'+[['Nadie sabe por quién votaste','Tus votos y motivos se guardan sin tu nombre. En la app nadie, ni el administrador, puede ver por quién votaste.'],
    ['Tu nombre solo marca que participaste','Lo usamos únicamente para saber si todo el equipo ya votó. Junto a tu nombre aparecerá un ✓, nada más.'],
-   ['Tus motivos se leen sin firma','Si la persona que elegiste gana, verá lo que escribiste, pero no quién lo escribió.']]
+   ['Tus motivos se leen sin firma','Si la persona que elegiste gana, verá lo que escribiste, pero no quién lo escribió.']].concat(x.leader?[['Como líder, tu voto desempata','Si un pilar queda empatado, ganan los votos de líderes. Por eso tu voto queda marcado como «voto de líder», sin tu nombre.']]:[])
   .map(function(r,i){return '<div class="prow" style="align-items:flex-start"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="t"><b>'+r[0]+'</b><span>'+r[1]+'</span></span></div>'}).join('')+'</div>'+
   '<p class="small">¿No eres '+esc(x.name)+'? Vuelve y elige tu nombre.</p></div>'+
   '<div class="sticky"><button class="btn" data-a="accept">Entendido, continuar</button></div>'};
@@ -855,7 +869,7 @@ V.pillars=function(){return (S.stack.length>1?appbar():'')+'<div class="pad">'+
   '<p class="quote">El reconocimiento no se trata de premios, sino de construir confianza.</p>'+
   '<div class="list">'+PILLARS.map(function(p,i){return '<button class="prow" data-a="pillar" data-p="'+p.id+'"><span class="num">0'+(i+1)+'</span><span class="t"><b>'+p.name+'</b><span>'+p.symbol+'</span></span>'+medal(p.id,44)+'</button>'}).join('')+'</div>'+
   '<div class="card"><span class="ray"></span><b class="h2" style="font-size:15px">Cómo funciona cada mes</b><div style="display:grid;gap:10px;margin-top:4px">'+
-  [['Votas','Eliges a una persona por pilar, con un motivo concreto.'],['Cerramos','Gana quien tenga más votos en cada pilar. Si hay empate, el pin es compartido.'],['Celebramos','Revelamos a los Kiber Champions en la reunión y entregamos el pin.']].map(function(x,i){return '<div style="display:flex;gap:12px"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="small"><b style="color:var(--ink)">'+x[0]+'.</b> '+x[1]+'</span></div>'}).join('')+'</div></div></div>'};
+  [['Votas','Eliges a una persona por pilar, con un motivo concreto.'],['Cerramos','Gana quien tenga más votos en cada pilar. Si hay empate, desempatan los votos de los líderes; si siguen empatados, el pin es compartido.'],['Celebramos','Revelamos a los Kiber Champions en la reunión y entregamos el pin.']].map(function(x,i){return '<div style="display:flex;gap:12px"><span class="num" style="font-size:20px;min-width:28px">0'+(i+1)+'</span><span class="small"><b style="color:var(--ink)">'+x[0]+'.</b> '+x[1]+'</span></div>'}).join('')+'</div></div></div>'};
 
 V.pillar=function(){var p=PL(S.cur);var can=G&&S.who&&stage()==='votacion'&&G.me&&!G.me.voted&&!expired();return appbar(p.symbol)+'<div class="pad">'+
   '<div style="display:flex;justify-content:center;padding:4px 0">'+medal(p.id,160)+'</div>'+
@@ -904,7 +918,7 @@ V.reveal=function(){var i=S.reveal.i;var w=G.winners;
   '<div class="rings"><span class="r r3"></span><span class="r"></span><span class="r r2"></span>'+medal(p.id,150)+'</div>'+
   (win.ids.length?'<div class="rv-faces rise" style="animation-delay:.8s">'+win.ids.map(function(id){return av(P(id),64)}).join('')+'</div>'+
   '<h1 class="nm" aria-label="'+esc(names)+'">'+letters+'</h1>'+
-  '<p class="small rise" style="animation-delay:1.5s">'+(win.ids.length>1?'Pin compartido · ':'')+win.votes+' '+(win.votes===1?'voto':'votos')+' · '+win.reasons.length+' '+(win.reasons.length===1?'reconocimiento':'reconocimientos')+'</p>'+
+  '<p class="small rise" style="animation-delay:1.5s">'+(win.ids.length>1?'Pin compartido · ':'')+(win.byLeaders?'Desempate por votos de líderes · ':'')+win.votes+' '+(win.votes===1?'voto':'votos')+' · '+win.reasons.length+' '+(win.reasons.length===1?'reconocimiento':'reconocimientos')+'</p>'+
   '<div class="reasons">'+win.reasons.map(function(r,k){return '<p class="quote rise" style="animation-delay:'+(1.8+k*.25).toFixed(2)+'s">«'+esc(r)+'»</p>'}).join('')+'</div>':'<p class="lead">Este pilar no tuvo votos suficientes este mes.</p>')+
   '<div class="dots rise" style="animation-delay:1.6s">'+PILLARS.map(function(_,k){return '<i class="'+(k===i?'on':'')+'"></i>'}).join('')+'</div>'+
   '<button class="btn rise" style="animation-delay:1.6s" data-a="nextReveal">'+(i===3?'Ver a los 4 Champions':'Siguiente pilar')+'</button></div>'};
@@ -937,9 +951,16 @@ V.allRecog=function(){var R=G.recognitions||{};
    (list.length?list.map(function(x){var q=P(x.id),n=x.reasons.length;return '<button class="person" data-a="recog" data-p="'+p.id+'" data-id="'+x.id+'">'+av(q)+'<span class="t"><b>'+esc(q.name)+'</b><small>'+n+' '+(n===1?'reconocimiento':'reconocimientos')+'</small></span>'+(win.indexOf(x.id)>=0?'<span class="st champ">Champion</span>':'')+ICON.chev+'</button>'}).join(''):'<p class="small">Nadie recibió votos en este pilar.</p>')+'</section>'}).join('')+
   '<p class="small" style="display:flex;gap:6px;align-items:center">'+ICON.lock+'Solo aparece quien recibió votos. Nunca se muestra quién escribió cada mensaje.</p></div>'};
 
+/* Copia del propio voto, guardada solo en este teléfono (el servidor no sabe quién votó por quién) */
+function myVoteCard(){var st=stage();if(!S.who||(st!=='votacion'&&st!=='cerrado'))return '';var raw=sget('rk-myvote-'+S.who);if(!raw)return '';var v;try{v=JSON.parse(raw)}catch(e){return ''}
+ if(!v||v.month!==G.cycle.month)return '';
+ return '<section class="card myvote"><div class="topline"><span class="kicker">Tu voto de '+esc(monthWord().toLowerCase())+'</span><span class="small" style="display:flex;gap:4px;align-items:center">'+ICON.lock+'Solo tú</span></div>'+
+  '<div class="list">'+PILLARS.map(function(p){var n=v.draft[p.id]||{skip:true};return '<div class="prow" style="align-items:flex-start;min-height:0">'+medal(p.id,36)+'<span class="t"><b>'+p.name+'</b><span>'+(n.skip?'Sin voto':esc(P(n.nominee).name))+'</span>'+(n.skip?'':'<span class="quote" style="margin-top:6px;font-size:13px">«'+esc(n.reason)+'»</span>')+'</span></div>'}).join('')+'</div>'+
+  '<p class="small">Esta copia está guardada solo en este teléfono. Nadie más puede ver por quién votaste.</p></section>'}
 V.winners=function(){var months=[];
  months=months.concat(G.history||[]);
- return '<div class="pad">'+head('Kiber Champions','Salón de Champions','Cada fila es un pin entregado. Los ganadores del mes en curso aparecen cuando se revelan.')+
+ return '<div class="pad">'+head('Kiber Champions','Salón de Champions',stage()==='votacion'?'Los Champions de '+esc(monthWord().toLowerCase())+' aparecen aquí cuando se revelen. Abajo están los de meses anteriores.':'Cada fila es un pin entregado. Los ganadores del mes en curso aparecen cuando se revelan.')+
+  myVoteCard()+
   (stage()==='revelado'?'<button class="btn sec" data-a="startReveal">Ver la revelación de '+esc(monthWord().toLowerCase())+'</button>':'')+
   (stage()==='revelado'&&G.winners?'<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(G.cycle.month)+'</b><span class="small">Toca para leer</span></div>'+winnerRows(currentWinners(),36)+'</div><button class="btn sec" data-a="allRecog">Ver a todos los reconocidos</button>':'')+
   (months.length?months.map(function(m){return '<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(m.month)+'</b><span class="small">4 pines</span></div>'+PILLARS.map(function(p){var ids=m.winners[p.id]||[];return '<div class="wrow">'+medal(p.id,36)+'<span class="t"><span>'+p.name+'</span><b>'+(ids.map(function(id){return esc(P(id).name)}).join(' y ')||'Sin ganador')+'</b></span></div>'}).join('')+'</div>'}).join(''):
@@ -957,7 +978,7 @@ V.admin=function(){var c=A.cycle,st=c.stage;var idx=-1;STAGES.forEach(function(s
  var step=STAGES.map(function(s,k){return '<div class="'+(k<idx?'done':k===idx?'now':'')+'"><i></i><span>'+s[1]+'</span></div>'}).join('');
  var action='';
  if(st==='idle')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Abrir la votación del mes</b><span class="small">Eliges el mes que se evalúa y la fecha límite para votar. El contador aparece en la pantalla de inicio de todos.</span><button class="btn" data-a="sheet" data-s="open">Abrir votación</button></div>';
- if(st==='votacion')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Cerrar la votación</b><span class="small">Gana quien tenga más votos en cada pilar. Los resultados quedan guardados sin mostrarse al equipo.</span><button class="btn" data-a="sheet" data-s="toClose">Cerrar votación</button><button class="btn sec sm" data-a="sheet" data-s="extend">Cambiar fecha límite</button></div>';
+ if(st==='votacion')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Cerrar la votación</b><span class="small">Gana quien tenga más votos en cada pilar; si hay empate, desempatan los votos de líderes. Los resultados quedan guardados sin mostrarse al equipo.</span><button class="btn" data-a="sheet" data-s="toClose">Cerrar votación</button><button class="btn sec sm" data-a="sheet" data-s="extend">Cambiar fecha límite</button></div>';
  if(st==='cerrado')action='<div class="card"><span class="kicker">Siguiente paso</span><b class="h2">Mostrar a los ganadores</b><span class="small">Todos verán la revelación animada de cada pilar con sus reconocimientos.</span><button class="btn" data-a="sheet" data-s="toReveal">Mostrar ganadores a todos</button></div>';
  if(st==='revelado')action='<div class="card"><span class="kicker">Mes terminado</span><b class="h2">Ganadores publicados</b><span class="small">Proyecta la revelación en la reunión. Cuando termines, cierra el mes para abrir el siguiente.</span><button class="btn" data-a="adminReveal">Proyectar revelación</button><button class="btn sec sm" data-a="sheet" data-s="archive">Cerrar mes y preparar el siguiente</button></div>';
  var open=st==='votacion';
@@ -993,7 +1014,7 @@ V.adminVotes=function(){var st=A.cycle.stage;
    return '<div style="display:grid;gap:4px"><div style="display:flex;align-items:center;gap:10px;padding-bottom:4px">'+medal(p.id,32)+'<b class="h2" style="font-size:15px">'+p.name+'</b></div>'+
    (rows.length?rows.map(function(x){var tag=top.indexOf(x.id)>=0?' <small>· '+(lead?'va ganando':'ganador')+'</small>':'';return '<div class="vrow"><b>'+esc(P(x.id).name)+tag+'</b><em>'+x.votes+'</em><div class="bar"><i style="width:'+Math.round(x.votes/max*100)+'%"></i></div></div>'}).join(''):'<p class="small">Sin votos todavía.</p>')+
    (skips?'<p class="small">'+skips+' '+(skips===1?'persona omitió':'personas omitieron')+' este pilar.</p>':'')+'</div>'}).join('')+
-  (lead?'<p class="small">“Va ganando” indica quién se llevaría el pin si cerraras ahora. Si hay empate, el pin es compartido.</p>':'')+'</div>'};
+  (lead?'<p class="small">“Va ganando” indica quién se llevaría el pin si cerraras ahora. Si hay empate, desempatan los votos de líderes; si siguen empatados, el pin es compartido.</p>':'')+'</div>'};
 
 /* Hojas de confirmación */
 function pad2(n){return String(n).padStart(2,'0')}
@@ -1110,7 +1131,7 @@ document.getElementById('app').addEventListener('click',function(e){
   case 'saveReason':{S.draft[S.cur]={nominee:S.tmp.nominee,reason:S.tmp.reason.replace(/\s+/g,' ').trim()};saveDraft();var np=PILLARS.filter(function(p){return !S.draft[p.id]})[0];
     S.flash={msg:'Elegiste a '+P(S.tmp.nominee).name+' en '+PL(S.cur).name+'.'+(np?' Te falta '+np.name+'.':' Ya puedes revisar y enviar.')};root('home');break}
   case 'review':go('review');break;
-  case 'sendNom':run(api('vote',S.who,S.draft),function(g){setG(g);S.draft={};saveDraft();S.flash={msg:'Voto enviado. ¡Gracias por reconocer!'};root('home')});break;
+  case 'sendNom':var sent={month:G.cycle.month,draft:S.draft};run(api('vote',S.who,S.draft),function(g){setG(g);sset('rk-myvote-'+S.who,JSON.stringify(sent));S.draft={};saveDraft();S.flash={msg:'Voto enviado. ¡Gracias por reconocer!'};root('home')});break;
   case 'startReveal':if(G&&G.winners){S.reveal={i:0,phase:'count'};go('reveal');break}run(refresh(),function(){S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'adminReveal':if(G&&G.winners&&stage()==='revelado'){S.reveal={i:0,phase:'count'};go('reveal');break}run(api('state',null),function(g){setG(g);S.reveal={i:0,phase:'count'};go('reveal')});break;
   case 'recog':S.cur=pid;S.rid=t.getAttribute('data-id');go('recog');break;

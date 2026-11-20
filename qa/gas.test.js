@@ -13,6 +13,8 @@ test('setup crea las pestañas con encabezados, el equipo y el PIN', () => {
   e.ctx.setup();
   assert.deepEqual(Object.keys(e.sheets).sort(), ['Config', 'Historial', 'Nominaciones', 'Participacion', 'Personas']);
   assert.deepEqual(e.sheets.Participacion.grid[0], ['ciclo', 'etapa', 'id', 'fecha_ms', 'votó (nombre)', 'fecha']);
+  assert.equal(e.sheets.Personas.grid.find(r => r[0] === 'mc')[5], true, 'Margarita es líder');
+  assert.equal(e.sheets.Personas.grid.find(r => r[0] === 'mo')[5], false);
   assert.equal(e.sheets.Personas.grid.length, 21, '20 personas + encabezado');
   assert.equal(e.props.ADMIN_PIN, '5591');
   e.ctx.setup(); // repetir no duplica
@@ -71,4 +73,30 @@ test('abrir el link /exec solo confirma que el servidor está activo', () => {
   const e = makeEnv();
   const r = JSON.parse(e.ctx.doGet().content);
   assert.equal(r.ok, true); assert.equal(r.servidor, 'activo');
+});
+
+test('el mes del historial se guarda como texto y se lee bien aunque Sheets lo haya convertido en fecha', () => {
+  const e = makeEnv(); e.ctx.setup();
+  const tok = e.call('adminLogin', '5591').data.token;
+  e.call('adminOpen', tok, 'Noviembre 2026', Date.now() + 864e5);
+  e.call('vote', 'mo', vote({ colaboracion: 'rm' }));
+  e.call('adminClose', tok); e.call('adminReveal', tok); e.call('adminArchive', tok);
+  assert.equal(e.sheets.Historial.grid[1][0], "'Noviembre 2026", 'se escribe forzado a texto');
+  // Simula una fila antigua que Sheets convirtió en fecha (1 nov 2026, 00:00 en Chile)
+  e.sheets.Historial.grid.push([new Date('2026-10-01T03:00:00.000Z'), JSON.stringify({ colaboracion: ['gc'] })]);
+  const hist = e.call('state', null).data.history;
+  assert.deepEqual(hist.map(h => h.month), ['Octubre 2026', 'Noviembre 2026']);
+  e.ctx.setup();
+  assert.equal(e.sheets.Historial.grid[2][0], "'Octubre 2026", 'setup repara la fila');
+});
+
+test('setup marca a Jorge y Margarita como líderes en una Hoja antigua sin esa columna', () => {
+  const e = makeEnv(); e.ctx.setup();
+  e.sheets.Personas.grid.slice(1).forEach(r => { r[5] = ''; });
+  e.ctx.setup();
+  assert.deepEqual(e.sheets.Personas.grid.slice(1).filter(r => r[5] === true).map(r => r[0]).sort(), ['jp', 'mc']);
+  const tok = e.call('adminLogin', '5591').data.token;
+  e.call('adminOpen', tok, 'Noviembre 2026', Date.now() + 864e5);
+  e.call('vote', 'jp', vote({ colaboracion: 'rm' }));
+  assert.ok(e.sheets.Nominaciones.grid.slice(1).every(r => r[6] === true), 'la Hoja marca «voto de líder»');
 });
