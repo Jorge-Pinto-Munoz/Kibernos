@@ -24,7 +24,9 @@
         });
       },
       getHistory: function () { return clone(db.hist).reverse(); },
-      addHistory: function (e) { db.hist.push(clone(e)); }
+      addHistory: function (e) { db.hist.push(clone(e)); },
+      clearCycle: function (c) { ['part', 'nom', 'fin'].forEach(function (k) { db[k] = db[k].filter(function (r) { return c !== null && r.cycle !== c; }); }); },
+      clearHistory: function () { db.hist = []; }
     };
   }
   function makeMemAuth() {

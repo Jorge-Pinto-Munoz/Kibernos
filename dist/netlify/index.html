@@ -172,6 +172,9 @@ button.wrow{width:100%;text-align:left;min-height:60px}
 
 .card.myvote{background:var(--bg);gap:12px}
 
+.card.danger{background:var(--bg);border-style:dashed}
+.btn.danger-btn{color:var(--alert);border-color:#E7B9BC}
+
 /* Contador */
 .cd{display:grid;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}
 .cd .lbl{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 8px;font-size:12px;color:var(--ink-3)}
@@ -402,6 +405,8 @@ function onError(e){
   if(S.sheet){S.sheetErr=e.message;renderSheet();return}
   S.flash={msg:e.message,err:true};render();
 }
+/* Borra borradores y copias de voto guardadas en este teléfono (tras un reinicio) */
+function clearLocalVotes(){var st=store();if(!st)return;try{Object.keys(st).forEach(function(k){if(/^rk-(draft|myvote)-/.test(k))st.removeItem(k)})}catch(e){}S.draft={};S.fdraft={}}
 function saveDraft(){if(S.who)sset('rk-draft-'+S.who,JSON.stringify({cycle:G&&G.cycle.month,draft:S.draft,fdraft:S.fdraft}))}
 function loadDraft(){S.draft={};S.fdraft={};var raw=sget('rk-draft-'+S.who);if(!raw)return;try{var d=JSON.parse(raw);if(d.cycle===(G&&G.cycle.month)){S.draft=d.draft||{};S.fdraft=d.fdraft||{}}}catch(e){}}
 
@@ -600,7 +605,7 @@ V.allRecog=function(){var R=G.recognitions||{};
   '<p class="small" style="display:flex;gap:6px;align-items:center">'+ICON.lock+'Solo aparece quien recibió votos. Nunca se muestra quién escribió cada mensaje.</p></div>'};
 
 /* Copia del propio voto, guardada solo en este teléfono (el servidor no sabe quién votó por quién) */
-function myVoteCard(){var st=stage();if(!S.who||(st!=='votacion'&&st!=='cerrado'))return '';var raw=sget('rk-myvote-'+S.who);if(!raw)return '';var v;try{v=JSON.parse(raw)}catch(e){return ''}
+function myVoteCard(){var st=stage();if(!S.who||(st!=='votacion'&&st!=='cerrado'))return '';if(st==='votacion'&&!(G.me&&G.me.voted))return '';var raw=sget('rk-myvote-'+S.who);if(!raw)return '';var v;try{v=JSON.parse(raw)}catch(e){return ''}
  if(!v||v.month!==G.cycle.month)return '';
  return '<section class="card myvote"><div class="topline"><span class="kicker">Tu voto de '+esc(monthWord().toLowerCase())+'</span><span class="small" style="display:flex;gap:4px;align-items:center">'+ICON.lock+'Solo tú</span></div>'+
   '<div class="list">'+PILLARS.map(function(p){var n=v.draft[p.id]||{skip:true};return '<div class="prow" style="align-items:flex-start;min-height:0">'+medal(p.id,36)+'<span class="t"><b>'+p.name+'</b><span>'+(n.skip?'Sin voto':esc(P(n.nominee).name))+'</span>'+(n.skip?'':'<span class="quote" style="margin-top:6px;font-size:13px">«'+esc(n.reason)+'»</span>')+'</span></div>'}).join('')+'</div>'+
@@ -635,7 +640,12 @@ V.admin=function(){var c=A.cycle,st=c.stage;var idx=-1;STAGES.forEach(function(s
   (st!=='idle'?'<div class="stepper" aria-label="Etapa actual">'+step+'</div>':'')+
   (open?countdown(c,'La votación cierra en'):'')+
   (st!=='idle'?'<button class="kpi" data-a="tab" data-s="adminPeople"><span><b class="g">'+n+'<small>/'+tot+'</small></b><em>ya votaron</em></span><span><b>'+(tot-n)+'</b><em>'+(open?'faltan · ver quiénes':'no votaron')+'</em></span></button><div class="bar" aria-hidden="true"><i style="width:'+Math.round(n/Math.max(1,tot)*100)+'%"></i></div>':'')+
-  action+shareCard()+'</div>'};
+  action+shareCard()+resetCard()+'</div>'};
+function resetCard(){var st=A.cycle.stage;
+ return '<div class="card danger"><span class="kicker">Zona de pruebas</span><b class="h2" style="font-size:15px">Reiniciar</b>'+
+  '<span class="small">Para limpiar después de una prueba. El equipo y el PIN no se tocan.</span>'+
+  (st==='votacion'||st==='cerrado'?'<button class="btn sec sm" data-a="sheet" data-s="resetVotes">Borrar los votos de este mes</button>':'')+
+  '<button class="btn sec sm danger-btn" data-a="sheet" data-s="resetAll">Empezar de cero</button></div>'}
 function shareCard(){return '<div class="card share"><span class="kicker">Link para el equipo</span><b class="h2" style="font-size:15px">Comparte ReKonoce</b>'+
   '<span class="small">Mándalo por WhatsApp, Teams o correo. En el teléfono se puede agregar a la pantalla de inicio.</span>'+
   '<code class="url" id="appUrl">'+esc(shareUrl())+'</code><button class="btn sm" data-a="copyUrl">Copiar link</button><p class="small" id="urlMsg" role="status"></p></div>'}
@@ -678,10 +688,14 @@ var SHEETS={
    (empty.length?'<p class="small">'+empty.map(function(p){return p.name}).join(', ')+' no tiene votos; ese pilar quedará sin ganador.</p>':''),ok:'Cerrar y calcular ganadores'}},
  toReveal:function(){return {title:'Mostrar ganadores',body:'<p class="lead">Todo el equipo verá la revelación y los reconocimientos. Esto no se puede ocultar después.</p>',ok:'Mostrar a todos'}},
  extend:function(){return {title:'Cambiar fecha límite',body:'<div class="field"><label for="fDate">Nueva fecha límite</label><input id="fDate" type="datetime-local" value="'+toLocalInput(deadlineOf(A.cycle)||at18(2))+'"></div>',ok:'Guardar fecha'}},
+ resetVotes:function(){return {title:'Borrar los votos de '+esc(monthWord().toLowerCase()),body:'<p class="lead">Se borran todos los votos y motivos de este mes y nadie queda con ✓. La votación sigue abierta (cierra el '+esc(fmtDate(A.cycle.deadline))+')</p>'+
+   '<div class="field"><label for="fConfirm">Escribe REINICIAR para confirmar</label><input id="fConfirm" type="text" autocomplete="off" autocapitalize="characters" placeholder="REINICIAR"></div>',ok:'Borrar votos'}},
+ resetAll:function(){return {title:'Empezar de cero',body:'<p class="lead">Se borran todos los votos guardados (de todos los meses) y el Salón de Champions. La app queda sin mes abierto, lista para abrir una votación nueva.</p>'+
+   '<div class="field"><label for="fConfirm">Escribe REINICIAR para confirmar</label><input id="fConfirm" type="text" autocomplete="off" autocapitalize="characters" placeholder="REINICIAR"></div>',ok:'Borrar todo'}},
  archive:function(){return {title:'Cerrar el mes',body:'<p class="lead">'+esc(A.cycle.month)+' pasa al Salón de Champions y el panel queda listo para abrir la próxima votación.</p>',ok:'Cerrar mes'}}
 };
 function renderSheet(){var o=document.getElementById('overlay');if(!S.sheet){o.innerHTML='';return}var sh=SHEETS[S.sheet]();
- var keep={};['fMonth','fDate'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
+ var keep={};['fMonth','fDate','fConfirm'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
  o.innerHTML='<div class="scrim" data-a="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+esc(sh.title)+'"><span class="grab"></span><b class="h2">'+sh.title+'</b>'+sh.body+'<p class="err" role="alert">'+esc(S.sheetErr)+'</p><button class="btn" data-a="confirmSheet" '+(S.busy?'disabled':'')+'>'+sh.ok+'</button><button class="btn sec sm" data-a="closeSheet">Cancelar</button></div></div>';
  Object.keys(keep).forEach(function(id){var el=document.getElementById(id);if(el)el.value=keep[id]});
 }
@@ -692,6 +706,8 @@ function confirmSheet(){var k=S.sheet;var dEl=document.getElementById('fDate');v
  if(k==='toClose'){p=api('adminClose',t);msg='Votación cerrada. Ganadores guardados y ocultos.'}
  if(k==='toReveal'){p=api('adminReveal',t);msg='Ganadores visibles para todo el equipo.'}
  if(k==='extend'){p=api('adminExtend',t,when);msg='Nueva fecha límite: '+fmtDate(when)+'.'}
+ if(k==='resetVotes'||k==='resetAll'){var cv=(document.getElementById('fConfirm').value||'').trim().toUpperCase();if(cv!=='REINICIAR'){S.sheetErr='Escribe REINICIAR para confirmar.';renderSheet();return}
+  p=api('adminReset',t,k==='resetVotes'?'votes':'all',cv);msg=k==='resetVotes'?'Votos borrados. La votación sigue abierta.':'Todo reiniciado. Ya puedes abrir una votación nueva.';clearLocalVotes()}
  if(k==='archive'){p=api('adminArchive',t);msg='Mes cerrado. Ya puedes abrir la próxima votación.'}
  renderSheet();
  run(p,function(a){setA(a);S.sheet=null;S.flash={msg:msg};S.stack=['admin'];render()});

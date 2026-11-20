@@ -169,3 +169,19 @@ test('empate: desempatan los votos de líderes (Jorge y Margarita); si también 
   assert.deepEqual(w.respeto.ids.sort(), ['bp', 'na']); assert.equal(w.respeto.byLeaders, false);
   assert.equal(t.ok('state', null).people.find(p => p.id === 'jp').leader, true);
 });
+
+test('reinicio: borra los votos del mes (sigue abierta) o empieza de cero', () => {
+  const t = setup(); open(t);
+  t.ok('vote', 'mo', votes({ colaboracion: 'rm' }));
+  assert.match(t.bad('adminReset', t.token, 'votes', 'otra cosa'), /REINICIAR/);
+  t.ok('adminReset', t.token, 'votes', 'reiniciar');
+  let s = t.ok('state', 'mo');
+  assert.equal(s.cycle.stage, 'votacion'); assert.equal(s.votedCount, 0); assert.equal(s.me.voted, false);
+  t.ok('vote', 'mo', votes({ colaboracion: 'rm' }), 'puede volver a votar');
+  t.ok('adminClose', t.token); t.ok('adminReveal', t.token); t.ok('adminArchive', t.token);
+  open(t); t.ok('vote', 'bb', votes({}));
+  t.ok('adminReset', t.token, 'all', 'REINICIAR');
+  s = t.ok('state', null);
+  assert.equal(s.cycle.stage, 'idle'); assert.equal(s.history.length, 0); assert.equal(s.votedCount, 0);
+  assert.equal(t.store.db.nom.length, 0); assert.equal(t.store.db.part.length, 0);
+});

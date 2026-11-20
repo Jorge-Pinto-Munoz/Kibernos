@@ -54,6 +54,8 @@ Si la Hoja se creó con una versión anterior, vuelve a ejecutar `setup`: agrega
 
 ## Ajustes del día a día
 
+- **Reiniciar después de una prueba:** en el panel de administrador, «Zona de pruebas». *Borrar los votos de este mes* deja la votación abierta con 0 votos; *Empezar de cero* borra todos los votos y el Salón. Ambas piden escribir REINICIAR. El equipo y el PIN no se tocan.
+
 - **Equipo:** pestaña `Personas`. La columna `lider` en `TRUE` marca a quienes desempatan (hoy Jorge Pinto y Margarita Cerda). La columna `activo` en `FALSE` deja a la persona fuera de votar y de ser nominada (hoy Noelia Barrera y Sofía Calderón, por postnatal; votan 18 de 20 personas). Para sumar a alguien agrega una fila con un `id` único.
 - **Cambiar el PIN:** Configuración del proyecto → Propiedades del script → `ADMIN_PIN`.
 - **Seguridad del PIN:** se valida en el servidor, nunca viaja al teléfono. Tras 5 intentos fallidos se bloquea 10 minutos. La sesión de admin dura 6 horas.

@@ -63,6 +63,8 @@ const SCREENS = [
   ['admin-votos', 'nom|admin', click('.tabs [data-s="adminVotes"]')],
   ['admin-hoja-cerrar', 'nom|admin', click('[data-s="toClose"]')],
   ['admin-hoja-fecha', 'nom|admin', click('[data-s="extend"]')],
+  ['admin-hoja-borrar-votos', 'nom|admin', click('[data-s="resetVotes"]')],
+  ['admin-hoja-empezar-de-cero', 'nom|admin', seq(click('[data-s="resetAll"]'), async p => { await p.fill('#fConfirm', 'otra'); }, click('[data-a="confirmSheet"]'))],
   ['admin-cerrado', 'cerrado|admin', null],
   ['admin-votos-cerrado', 'cerrado|admin', click('.tabs [data-s="adminVotes"]')],
   ['admin-hoja-revelar', 'cerrado|admin', click('[data-s="toReveal"]')],

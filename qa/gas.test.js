@@ -100,3 +100,24 @@ test('setup marca a Jorge y Margarita como líderes en una Hoja antigua sin esa 
   e.call('vote', 'jp', vote({ colaboracion: 'rm' }));
   assert.ok(e.sheets.Nominaciones.grid.slice(1).every(r => r[6] === true), 'la Hoja marca «voto de líder»');
 });
+
+test('reinicio en la Hoja: borra solo las filas del mes actual y, con «todo», también el historial', () => {
+  const e = makeEnv(); e.ctx.setup();
+  e.sheets.Participacion.grid.push(['c-viejo', 'vot', 'rm', 1, 'Rodolfo Montoya', '']);
+  const tok = e.call('adminLogin', '5591').data.token;
+  e.call('adminOpen', tok, 'Noviembre 2026', Date.now() + 864e5);
+  e.call('vote', 'mo', vote({ colaboracion: 'rm' }));
+  e.call('vote', 'bb', vote({ respeto: 'mc' }));
+  assert.ok(e.call('adminReset', tok, 'votes', 'REINICIAR').ok);
+  assert.equal(e.sheets.Participacion.getLastRow(), 2, 'queda solo la fila de otro ciclo');
+  assert.equal(e.sheets.Participacion.grid[1][0], 'c-viejo');
+  assert.equal(e.sheets.Nominaciones.getLastRow(), 1);
+  assert.equal(e.call('state', null).data.votedCount, 0);
+  assert.ok(e.call('vote', 'mo', vote({ colaboracion: 'rm' })).ok, 'puede volver a votar');
+  assert.equal(e.sheets.Participacion.getLastRow(), 3);
+  e.sheets.Historial.grid.push(["'Octubre 2026", '{}', 'x']);
+  assert.ok(e.call('adminReset', tok, 'all', 'REINICIAR').ok);
+  assert.equal(e.sheets.Historial.getLastRow(), 1);
+  assert.equal(e.call('state', null).data.cycle.stage, 'idle');
+  assert.equal(e.sheets.Participacion.getLastRow(), 1, 'con «todo» se borran también los meses anteriores');
+});

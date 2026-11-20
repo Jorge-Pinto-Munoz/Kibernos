@@ -5,15 +5,16 @@ function makeSheet(name) {
   const grid = []; // filas de valores
   const sh = {
     name, grid,
-    getLastRow: () => grid.length,
-    appendRow: row => { grid.push(row.slice()); return sh; },
+    getLastRow: () => { let n = grid.length; while (n > 0 && !(grid[n - 1] || []).some(v => v !== '' && v !== undefined && v !== null)) n--; return n; },
+    appendRow: row => { grid[sh.getLastRow()] = row.slice(); return sh; },
     insertRowAfter: r => { grid.splice(r, 0, []); return sh; },
     setFrozenRows: () => sh,
     getRange: (r, c, nr = 1, nc = 1) => ({
       getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => { const v = (grid[r - 1 + i] || [])[c - 1 + j]; return v === undefined ? '' : v; })),
       setValues(vals) { vals.forEach((row, i) => { const R = grid[r - 1 + i] || (grid[r - 1 + i] = []); row.forEach((v, j) => { R[c - 1 + j] = v; }); }); return this; },
       setValue(v) { const R = grid[r - 1] || (grid[r - 1] = []); R[c - 1] = v; return this; },
-      setFontWeight() { return this; }
+      setFontWeight() { return this; },
+      clearContent() { for (let i = 0; i < nr; i++) { const R = grid[r - 1 + i]; if (R) for (let j = 0; j < nc; j++) R[c - 1 + j] = ''; } return this; }
     })
   };
   return sh;

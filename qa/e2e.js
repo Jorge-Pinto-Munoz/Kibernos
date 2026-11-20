@@ -100,6 +100,15 @@ const R = 'Durante todo el mes ayudó a ordenar el trabajo y nos explicó con pa
     await page.click('[data-a="exitReveal"]'); await page.click('[data-s="archive"]'); await page.click('[data-a="confirmSheet"]'); await ready();
     assert.match(await text(), /Abrir la votación del mes/);
   });
+  await step('Zona de pruebas: «Empezar de cero» pide REINICIAR y deja todo limpio', async () => {
+    await page.click('[data-s="resetAll"]'); await page.fill('#fConfirm', 'no'); await page.click('[data-a="confirmSheet"]');
+    assert.match(await page.innerText('.sheet'), /Escribe REINICIAR/);
+    await page.fill('#fConfirm', 'reiniciar'); await page.click('[data-a="confirmSheet"]'); await ready();
+    assert.match(await text(), /Todo reiniciado/);
+    await page.click('.tabs [data-s="logout"]'); await ready();
+    const t = await text(); assert.match(t, /No hay una votación abierta/);
+    assert.equal(await page.locator('.tick').count(), 0);
+  });
   assert.deepEqual(errors, [], 'sin errores de consola');
   console.log('\nRecorrido completo sin errores.');
   await browser.close();

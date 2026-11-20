@@ -242,6 +242,25 @@ var RK = (function () {
     store.setConfig({ cycleId: '', month: '', stage: 'idle', deadline: null, winners: null });
   }
 
+  /** Reinicio desde el panel. «votes»: borra los votos del mes y lo deja abierto. «all»: borra todos los votos y el Salón. */
+  function adminReset(store, mode, confirm) {
+    if (String(confirm || '').trim().toUpperCase() !== 'REINICIAR') fail('Escribe REINICIAR para confirmar.');
+    var cfg = store.getConfig();
+    if (mode === 'votes') {
+      if (cfg.stage !== 'votacion' && cfg.stage !== 'cerrado') fail('No hay una votación abierta o cerrada para reiniciar.');
+      store.clearCycle(cfg.cycleId);
+      store.setConfig({ stage: 'votacion', winners: null });
+      return;
+    }
+    if (mode === 'all') {
+      store.clearCycle(null); // null = todos los meses
+      store.clearHistory();
+      store.setConfig({ cycleId: '', month: '', stage: 'idle', deadline: null, winners: null });
+      return;
+    }
+    fail('Opción de reinicio desconocida.');
+  }
+
   /* ---------- Punto de entrada único ---------- */
   function handle(store, auth, name, args, now) {
     args = args || [];
@@ -265,6 +284,7 @@ var RK = (function () {
         case 'adminReveal': admin(); adminReveal(store); data = adminState(store, now); break;
         case 'adminExtend': admin(); adminExtend(store, args[1], now); data = adminState(store, now); break;
         case 'adminArchive': admin(); adminArchive(store); data = adminState(store, now); break;
+        case 'adminReset': admin(); adminReset(store, args[1], args[2]); data = adminState(store, now); break;
         default: fail('Acción desconocida.');
       }
       return JSON.stringify({ ok: true, data: data });
@@ -353,7 +373,7 @@ function doPost(e) {
 
 
 /** Endpoint único. Devuelve un string JSON: {ok, data} o {ok:false, error}. */
-var WRITES_ = ['vote', 'adminOpen', 'adminClose', 'adminReveal', 'adminExtend', 'adminArchive'];
+var WRITES_ = ['vote', 'adminOpen', 'adminClose', 'adminReveal', 'adminExtend', 'adminArchive', 'adminReset'];
 function rkApi(name, args) {
   args = args || [];
   // Lectura pública rápida: el estado es igual para todos; «me» se calcula aparte
@@ -588,6 +608,21 @@ function sheetStore_() {
         try { w = JSON.parse(r[1]); } catch (e) { }
         return { month: monthText_(r[0]), winners: w };
       }).reverse();
+    },
+    /** Borra las filas de un ciclo (o de todos, con null) en Participacion y Nominaciones. */
+    clearCycle: function (cycle) {
+      ['participacion', 'nominaciones'].forEach(function (k) {
+        var s = sh(k), n = s.getLastRow();
+        if (n < 2) return;
+        var w = SHEETS[k].length;
+        var keep = s.getRange(2, 1, n - 1, w).getValues().filter(function (r) { return r[0] && cycle !== null && r[0] !== cycle; });
+        s.getRange(2, 1, n - 1, w).clearContent();
+        if (keep.length) s.getRange(2, 1, keep.length, w).setValues(keep);
+      });
+    },
+    clearHistory: function () {
+      var s = sh('historial'), n = s.getLastRow();
+      if (n > 1) s.getRange(2, 1, n - 1, SHEETS.historial.length).clearContent();
     },
     addHistory: function (entry) {
       // El apóstrofo obliga a Sheets a guardarlo como texto (no lo muestra)
