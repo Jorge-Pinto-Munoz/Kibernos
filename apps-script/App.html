@@ -47,6 +47,8 @@ function P(id){var ps=people();for(var i=0;i<ps.length;i++)if(ps[i].id===id)retu
 function PL(id){for(var i=0;i<PILLARS.length;i++)if(PILLARS[i].id===id)return PILLARS[i]}
 function first(n){return n.split(' ')[0]}
 function ini(n){var w=n.split(' ').filter(function(x){return x&&x[0]===x[0].toUpperCase()});if(!w.length)w=[n];return (w[0][0]+(w.length>1?w[w.length-1][0]:'')).toUpperCase()}
+/* Nombre del mes legible aunque llegue como fecha (Google Sheets a veces lo convierte): día 1 del mes en Chile */
+function monthLabel(m){var t=String(m||'');if(/^\d{4}-\d{2}-\d{2}T/.test(t)){var d=new Date(new Date(t).getTime()+12*3600e3);if(!isNaN(d))return MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear()}return t}
 function monthWord(){return G&&G.cycle.month?G.cycle.month.split(' ')[0]:''}
 
 function hasServer(){try{return !!(window.google&&google.script&&google.script.run)}catch(e){return false}}
@@ -285,7 +287,7 @@ V.winners=function(){var months=[];
   myVoteCard()+
   (stage()==='revelado'?'<button class="btn sec" data-a="startReveal">Ver la revelación de '+esc(monthWord().toLowerCase())+'</button>':'')+
   (stage()==='revelado'&&G.winners?'<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(G.cycle.month)+'</b><span class="small">Toca para leer</span></div>'+winnerRows(currentWinners(),36)+'</div><button class="btn sec" data-a="allRecog">Ver a todos los reconocidos</button>':'')+
-  (months.length?months.map(function(m){return '<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(m.month)+'</b><span class="small">4 pines</span></div>'+PILLARS.map(function(p){var ids=m.winners[p.id]||[];return '<div class="wrow">'+medal(p.id,36)+'<span class="t"><span>'+p.name+'</span><b>'+(ids.map(function(id){return esc(P(id).name)}).join(' y ')||'Sin ganador')+'</b></span></div>'}).join('')+'</div>'}).join(''):
+  (months.length?months.map(function(m){return '<div class="wgrid"><div class="topline" style="padding:10px 0 6px"><b class="h2" style="font-size:15px">'+esc(monthLabel(m.month))+'</b><span class="small">4 pines</span></div>'+PILLARS.map(function(p){var ids=m.winners[p.id]||[];return '<div class="wrow">'+medal(p.id,36)+'<span class="t"><span>'+p.name+'</span><b>'+(ids.map(function(id){return esc(P(id).name)}).join(' y ')||'Sin ganador')+'</b></span></div>'}).join('')+'</div>'}).join(''):
    (stage()==='revelado'?'':'<div class="notice"><b>Todavía no hay Champions.</b><span>Aquí aparecerán los ganadores de cada mes.</span></div>'))+'</div>'};
 
 /* ---------- Administrador ---------- */
